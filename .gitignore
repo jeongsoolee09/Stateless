@@ -1,0 +1,9 @@
+.bloop/
+.bsp/
+.metals/
+.sbt-hydra-history
+target/
+project/
+stateless/
+*.class
+__pycache__/
