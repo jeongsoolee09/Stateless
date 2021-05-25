@@ -16,7 +16,8 @@ class Bag[Element] {
   }
 
   def nodeToString(node: Node[Element]) =
-    if (node.nextElement == null) "nil"
+    if (node == null) "nil"
+    else if (node.nextElement == null) s"${node.content} -> nil"
     else s"${node.content} -> ${node.nextElement.content}"
 
   def stateToString() = s"node: ${nodeToString(firstElement)}, size: ${size}"

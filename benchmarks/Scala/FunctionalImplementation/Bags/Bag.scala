@@ -15,7 +15,8 @@ class Bag[Element] {
 
   def nodeToString(node: Node[Element]): String = node match {
     case NilNode() => "nil"
-    case NodeClass(value, node) => s"${value} -> ${nodeToString(node)}"
+    case NodeClass(value, NilNode()) => s"${value} -> nil"
+    case NodeClass(value, NodeClass(value2, _)) => s"${value} -> ${value2}"
   }
 
   def stateToString(stateTup: (Node[Element], Int)) = {
