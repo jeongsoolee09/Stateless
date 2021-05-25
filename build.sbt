@@ -27,6 +27,7 @@ version := "1.0"
 
 libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
 libraryDependencies += "org.scalameta" %% "scalameta" % "4.4.18"
+libraryDependencies += "com.lihaoyi" %% "ammonite-ops" % "2.3.8"
 libraryDependencies += {
   val version = scalaBinaryVersion.value match {
     case "2.10" => "1.0.3"
