@@ -3,7 +3,6 @@ package kr.ac.korea.prl.stateless.TreeTraverser
 import scala.annotation.tailrec
 import scala.meta._
 
-object TODO extends Exception {  }
 object ThisIsImpossible extends Exception {  }
 
 class TreeTraverser {
@@ -23,13 +22,35 @@ class TreeTraverser {
   def filterVar(paramList: List[Defn]): List[Defn] =
     paramList.filter(defn => defn match {
                        case Defn.Var(_) => true
-                       case _ => false
+                       case _           => false
                      })
 
 
   def isVar(tree: Tree): Boolean = tree match {
     case Defn.Var(_) => true
     case _ => false
+  }
+
+  // NOTE If some vars are missing, then you should first consult this definition
+  def filterStatementList(statList: List[Stat]): List[Stat] = {
+    val mapfunc = (elem: Stat) => elem match {
+      /* ============ Decl ============ */
+      case Decl.Var(_) => true
+      /* ============ Defn ============ */
+      case Defn.Var(_) => true
+      case Defn.Def(_) => true
+      case Defn.Class(_) => true
+      case Defn.Trait(_) => true
+      case Defn.Object(_) => true
+      /* ============ Term ============ */
+      case Term.Block(_) => true
+      case Term.If(_) => true
+      case Term.Try(_) => true
+      case Term.While(_) => true
+      case Term.For(_) => true
+      case _ => false
+    }
+    statList.filter(mapfunc)
   }
 
   def varCollectorInner(tree: Tree, currentClass: Type.Name, currentMethod: Term.Name,
@@ -47,7 +68,7 @@ class TreeTraverser {
       case defn @ Defn.Def(_, termName, _, _, _, _) if (!isDefun(defn)) =>
         (currentClass, currentMethod, termName)::acc
 
-      case Defn.Def(_, newMethodName, _, paramList, _, body) =>
+      case Defn.Def(_, newMethodName, _, _, _, body) =>
         varCollectorInner(body, currentClass, newMethodName, acc)
 
       case Defn.Class(_, newClassName, _, _, Template(_, _, _, body)) =>
@@ -56,21 +77,21 @@ class TreeTraverser {
 
       case Defn.Trait(_, _, _, _, templ) => templ match {
         case Template(_, _, _, stats) =>
-          stats.foldLeft(List[(Type.Name, Term.Name, Term.Name)]())((a, elem) =>
+          filterStatementList(stats).foldLeft(List[(Type.Name, Term.Name, Term.Name)]())((a, elem) =>
           varCollectorInner(elem, currentClass, currentMethod, a)) ++ acc
         case _                        => throw ThisIsImpossible
       }
 
       case Defn.Object(_, newObjectName, templ) => templ match {
         case Template(_, _, _, stats) =>
-          stats.foldLeft(List[(Type.Name, Term.Name, Term.Name)]())((a, elem) =>
+          filterStatementList(stats).foldLeft(List[(Type.Name, Term.Name, Term.Name)]())((a, elem) =>
           varCollectorInner(elem, currentClass, currentMethod, a)) ++ acc
         case _                        => throw ThisIsImpossible
       }
 
       /* ============ Term ============ */
-      case Term.Block(statementList) =>
-        statementList.foldLeft(List[(Type.Name, Term.Name, Term.Name)]())((a, elem) =>
+      case Term.Block(stats) =>
+        filterStatementList(stats).foldLeft(List[(Type.Name, Term.Name, Term.Name)]())((a, elem) =>
           varCollectorInner(elem, currentClass, currentMethod, a)) ++ acc
 
       case Term.If(_, thenBranch, elseBranch) => {
@@ -98,6 +119,15 @@ class TreeTraverser {
 
       case Term.For(_, body) =>
         varCollectorInner(body, currentClass, currentMethod, acc)
+
+      /* ============ Otherwise ============ */
+      case Source(stats) =>
+        filterStatementList(stats).foldLeft(List[(Type.Name, Term.Name, Term.Name)]())((a, elem) =>
+          varCollectorInner(elem, currentClass, currentMethod, a)) ++ acc
+
+      case otherwise => {
+        throw new MatchError(otherwise.productPrefix)
+      }
     }
 
   /**
@@ -111,13 +141,4 @@ class TreeTraverser {
                       Type.Name("_"), // placeholder
                       Term.Name("_"), // placeholder
                       List())
-
-  val add = q"def add(x:Int, y:Int) = x+y"
-  val add1 = q"""def add(x:Int, y:Int) = {
-  var a: Int = x+1
-  var b: Int = y+1
-  a+b
-}"""
-  val val_ = q"""private val x: Int = 1"""
-  varCollector(add1)
 }
