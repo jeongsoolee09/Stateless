@@ -44,6 +44,12 @@ class TreeTraverser {
       case Defn.Var(_, List(Pat.Var(termName)), _, _) =>
         (currentClass, currentMethod, termName)::acc
 
+      case defn @ Defn.Def(_, termName, _, _, _, _) if (!isDefun(defn)) =>
+        (currentClass, currentMethod, termName)::acc
+
+      case Defn.Def(_, newMethodName, _, paramList, _, body) =>
+        varCollectorInner(body, currentClass, newMethodName, acc)
+
       case Defn.Class(_, newClassName, _, _, Template(_, _, _, body)) =>
         body.foldLeft(List[(Type.Name, Term.Name, Term.Name)]())((a, elem) =>
           varCollectorInner(elem, newClassName, currentMethod, a)) ++ acc
@@ -54,9 +60,6 @@ class TreeTraverser {
           varCollectorInner(elem, currentClass, currentMethod, a)) ++ acc
         case _                        => throw ThisIsImpossible
       }
-
-      case defn @ Defn.Def(_, newMethodName, _, paramList, _, body) if isDefun(defn) =>
-        varCollectorInner(body, currentClass, newMethodName, acc)
 
       case Defn.Object(_, newObjectName, templ) => templ match {
         case Template(_, _, _, stats) =>
