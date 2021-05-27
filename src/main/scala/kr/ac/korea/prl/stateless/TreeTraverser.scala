@@ -19,19 +19,6 @@ class TreeTraverser {
   }
 
 
-  def filterVar(paramList: List[Defn]): List[Defn] =
-    paramList.filter(defn => defn match {
-                       case Defn.Var(_) => true
-                       case _           => false
-                     })
-
-
-  def isVar(tree: Tree): Boolean = tree match {
-    case Defn.Var(_) => true
-    case _ => false
-  }
-
-
   /**
     * Is this statement interesting?
     *
@@ -132,13 +119,11 @@ class TreeTraverser {
       case Term.Try(tryStat, catchCases, finallyOpt) => finallyOpt match {
         case Some(finallyStat) => {
           val collectedFromTry = varCollectorInner(tryStat, currentClass, currentMethod, List())
-          // val collectedFromCatch =
           val collectedFromFinally = varCollectorInner(finallyStat, currentClass, currentMethod, List())
           collectedFromTry ++ collectedFromFinally ++ acc
         }
         case None              => {
           val collectedFromTry = varCollectorInner(tryStat, currentClass, currentMethod, List())
-          // val collectedFromCatch =
           collectedFromTry ++ acc
         }
       }
@@ -172,7 +157,7 @@ class TreeTraverser {
     * Collect all the vars in the given tree.
     *
     * @param tree
-    * @return List of triples: ClassID * MethodID * VarID
+    * @return List of triples: ClassID * MethodID * VarID * TypeOption * TermOption
     */
   def varCollector(tree: Tree): List[(Type.Name, Term.Name, Term.Name,
                                       Option[Type], Option[Term])] =
