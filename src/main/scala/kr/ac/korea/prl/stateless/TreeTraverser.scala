@@ -31,72 +31,101 @@ class TreeTraverser {
     case _ => false
   }
 
-  // NOTE If some vars are missing, then you should first consult this definition
-  def filterStatementList(statList: List[Stat]): List[Stat] = {
-    val mapfunc = (elem: Stat) => elem match {
-      /* ============ Decl ============ */
-      case Decl.Var(_) => true
-      /* ============ Defn ============ */
-      case Defn.Var(_) => true
-      case Defn.Def(_) => true
-      case Defn.Class(_) => true
-      case Defn.Trait(_) => true
-      case Defn.Object(_) => true
-      /* ============ Term ============ */
-      case Term.Block(_) => true
-      case Term.If(_) => true
-      case Term.Try(_) => true
-      case Term.While(_) => true
-      case Term.For(_) => true
-      case _ => false
-    }
-    statList.filter(mapfunc)
+
+  /**
+    * Is this statement interesting?
+    *
+    * @param elem
+    * @return true if the given statement is interesting, false otherwise
+    */
+  def isInteresting(elem: Stat) = elem match {
+    /* ============ Decl ============ */
+    case Decl.Var(_) => true
+    /* ============ Defn ============ */
+    case Defn.Var(_) => true
+    case Defn.Def(_) => true
+    case Defn.Class(_) => true
+    case Defn.Trait(_) => true
+    case Defn.Object(_) => true
+    /* ============ Term ============ */
+    case Term.Block(_) => true
+    case Term.If(_) => true
+    case Term.Try(_) => true
+    case Term.While(_) => true
+    case Term.For(_) => true
+    /* ============ Source ============ */
+    case Source(_) => true
+    case Pkg(_) => true
+    case otherwise => // println("Not Interesting: " + otherwise.productPrefix);
+      false
   }
 
+
+  def functionBodyIsComposite(statPossiblyBlock: Term): Boolean = statPossiblyBlock match {
+    case Term.Block(_) => true
+    case Term.If(_)    => true
+    case Term.Try(_)   => true
+    case Term.While(_) => true
+    case Term.For(_)   => true
+    case _             => false
+  }
+
+
   def varCollectorInner(tree: Tree, currentClass: Type.Name, currentMethod: Term.Name,
-                         acc: List[(Type.Name, Term.Name, Term.Name)]):
-      List[(Type.Name, Term.Name, Term.Name)] =
+                        acc: List[(Type.Name, Term.Name, Term.Name, Option[Type], Option[Term])]):
+      List[(Type.Name, Term.Name, Term.Name, Option[Type], Option[Term])] =
     tree match {
       /* ============ Decl ============ */
-      case Decl.Var(_, List(Pat.Var(termName)), _) =>
-        (currentClass, currentMethod, termName)::acc
+      case Decl.Var(_, List(Pat.Var(termName)), valType) =>
+        (currentClass, currentMethod, termName, Some(valType), None)::acc
 
       /* ============ Defn ============ */
-      case Defn.Var(_, List(Pat.Var(termName)), _, _) =>
-        (currentClass, currentMethod, termName)::acc
+      case Defn.Var(_, List(Pat.Var(termName)), typeOpt, value) =>
+        (currentClass, currentMethod, termName, typeOpt, value)::acc
 
-      case defn @ Defn.Def(_, termName, _, _, _, _) if (!isDefun(defn)) =>
-        (currentClass, currentMethod, termName)::acc
+      case defn @ Defn.Def(_) if (!isDefun(defn)) =>
+        acc
 
-      case Defn.Def(_, newMethodName, _, _, _, body) =>
-        varCollectorInner(body, currentClass, newMethodName, acc)
+      case Defn.Def(_, newMethodName, _, _, _, body) =>  // Defun case
+        if (functionBodyIsComposite(body))
+          varCollectorInner(body, currentClass, newMethodName, acc)
+        else
+          acc
 
       case Defn.Class(_, newClassName, _, _, Template(_, _, _, body)) =>
-        body.foldLeft(List[(Type.Name, Term.Name, Term.Name)]())((a, elem) =>
+        body.foldLeft(List[(Type.Name, Term.Name, Term.Name,
+                            Option[Type], Option[Term])]())((a, elem) =>
           varCollectorInner(elem, newClassName, currentMethod, a)) ++ acc
 
       case Defn.Trait(_, _, _, _, templ) => templ match {
         case Template(_, _, _, stats) =>
-          filterStatementList(stats).foldLeft(List[(Type.Name, Term.Name, Term.Name)]())((a, elem) =>
-          varCollectorInner(elem, currentClass, currentMethod, a)) ++ acc
+          stats.filter(isInteresting).foldLeft(List[(Type.Name, Term.Name, Term.Name,
+                                                     Option[Type], Option[Term])]())((a, elem) =>
+            varCollectorInner(elem, currentClass, currentMethod, a)) ++ acc
         case _                        => throw ThisIsImpossible
       }
 
       case Defn.Object(_, newObjectName, templ) => templ match {
         case Template(_, _, _, stats) =>
-          filterStatementList(stats).foldLeft(List[(Type.Name, Term.Name, Term.Name)]())((a, elem) =>
-          varCollectorInner(elem, currentClass, currentMethod, a)) ++ acc
+          stats.filter(isInteresting).foldLeft(List[(Type.Name, Term.Name, Term.Name,
+                                                    Option[Type], Option[Term])]())((a, elem) =>
+            varCollectorInner(elem, currentClass, currentMethod, a)) ++ acc
         case _                        => throw ThisIsImpossible
       }
 
       /* ============ Term ============ */
       case Term.Block(stats) =>
-        filterStatementList(stats).foldLeft(List[(Type.Name, Term.Name, Term.Name)]())((a, elem) =>
+        stats.filter(isInteresting).foldLeft(List[(Type.Name, Term.Name, Term.Name,
+                                                  Option[Type], Option[Term])]())((a, elem) =>
           varCollectorInner(elem, currentClass, currentMethod, a)) ++ acc
 
       case Term.If(_, thenBranch, elseBranch) => {
-        val collectedFromThen = varCollectorInner(thenBranch, currentClass, currentMethod, List())
-        val collectedFromElse = varCollectorInner(elseBranch, currentClass, currentMethod, List())
+        val collectedFromThen = if (isInteresting(thenBranch))
+                                  varCollectorInner(thenBranch, currentClass, currentMethod, List())
+                                else List()
+        val collectedFromElse = if (isInteresting(elseBranch))
+                                  varCollectorInner(elseBranch, currentClass, currentMethod, List())
+                                else List()
         collectedFromThen ++ collectedFromElse ++ acc
       }
 
@@ -120,15 +149,24 @@ class TreeTraverser {
       case Term.For(_, body) =>
         varCollectorInner(body, currentClass, currentMethod, acc)
 
-      /* ============ Otherwise ============ */
+      /* ============ Source ============ */
       case Source(stats) =>
-        filterStatementList(stats).foldLeft(List[(Type.Name, Term.Name, Term.Name)]())((a, elem) =>
+        stats.filter(isInteresting).foldLeft(List[(Type.Name, Term.Name, Term.Name,
+                                                  Option[Type], Option[Term])]())((a, elem) =>
+          varCollectorInner(elem, currentClass, currentMethod, a)) ++ acc
+
+      /* ============ Source ============ */
+      case Pkg(_, stats) =>
+        stats.filter(isInteresting).foldLeft(List[(Type.Name, Term.Name, Term.Name,
+                                                  Option[Type], Option[Term])]())((a, elem) =>
           varCollectorInner(elem, currentClass, currentMethod, a)) ++ acc
 
       case otherwise => {
+        println(otherwise);
         throw new MatchError(otherwise.productPrefix)
       }
     }
+
 
   /**
     * Collect all the vars in the given tree.
@@ -136,9 +174,10 @@ class TreeTraverser {
     * @param tree
     * @return List of triples: ClassID * MethodID * VarID
     */
-  def varCollector(tree: Tree): List[(Type.Name, Term.Name, Term.Name)] =
+  def varCollector(tree: Tree): List[(Type.Name, Term.Name, Term.Name,
+                                      Option[Type], Option[Term])] =
     varCollectorInner(tree,
-                      Type.Name("_"), // placeholder
-                      Term.Name("_"), // placeholder
+                      Type.Name("ph"), // placeholder
+                      Term.Name("ph"), // placeholder
                       List())
 }
