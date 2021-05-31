@@ -13,8 +13,8 @@ scalaVersion := "2.13.3"
 
 // It's possible to define many kinds of settings, such as:
 
-name := "hello-world"
-organization := "ch.epfl.scala"
+name := "stateless"
+organization := "kr.ac.korea.prl"
 version := "1.0"
 
 // Note, it's not required for you to define these three settings. These are
@@ -28,6 +28,8 @@ version := "1.0"
 libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
 libraryDependencies += "org.scalameta" %% "scalameta" % "4.4.18"
 libraryDependencies += "com.lihaoyi" %% "ammonite-ops" % "2.3.8"
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.9"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.9" % "test"
 libraryDependencies += {
   val version = scalaBinaryVersion.value match {
     case "2.10" => "1.0.3"
