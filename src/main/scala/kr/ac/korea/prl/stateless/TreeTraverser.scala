@@ -248,8 +248,6 @@ class TreeTraverser {
               acc: List[(Type.Name, Term.Name)]):
         List[(Type.Name, Term.Name)] = {
 
-      // println("Traversing: " + truncatedPrint(tree) + s" (${tree.productPrefix})" + ", acc: "+ acc + ", currentClass: "+ currentClass+ ", currentMethod: "+ currentMethod)
-
       tree match {
         case _: Lit => acc
 
@@ -269,9 +267,9 @@ class TreeTraverser {
 
         case Defn.Var(_, _, _, termOpt) =>
           termOpt match {
-          case None       => acc
-          case Some(term) => inner(term, currentClass, currentMethod, acc)
-        }
+            case None       => acc
+            case Some(term) => inner(term, currentClass, currentMethod, acc)
+          }
 
         case defn @ Defn.Def(_, newMethodName, _, _, _, stat)
             if isDefun(defn) =>
