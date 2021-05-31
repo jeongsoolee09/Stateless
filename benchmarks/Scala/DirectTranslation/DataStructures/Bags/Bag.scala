@@ -13,7 +13,7 @@ class Bag[Element] extends Iterable[Element] {
   }
 
   private class ListIterator[Element](var firstElement: Node[Element])
-  extends Iterator[Element] {
+      extends Iterator[Element] {
     private var currentElement: Node[Element] = firstElement
 
     def hasNext(): Boolean = currentElement != null
@@ -23,8 +23,8 @@ class Bag[Element] extends Iterable[Element] {
     def next(): Element = {
       if (!hasNext()) throw new NoSuchElementException()
       val element = currentElement.content
-    currentElement = currentElement.nextElement
-  element
+      currentElement = currentElement.nextElement
+      element
     }
   }
 
