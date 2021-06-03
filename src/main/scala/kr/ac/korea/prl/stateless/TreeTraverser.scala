@@ -63,8 +63,7 @@ class TreeTraverser {
     /* ============ Source ============ */
     case Source(_) => true
     case Pkg(_) => true
-    case otherwise => // println("Not Interesting: " + otherwise.productPrefix);
-      false
+    case otherwise => false
   }
 
 
@@ -229,8 +228,8 @@ class TreeTraverser {
     * Collects the class names and identifiers of the methods that
     * refers to the given vars.
     *
-    * @param tree: the tree to search
-    * @param vars: the vars in question
+    * @param tree the tree to search
+    * @param vars the vars in question
     * @return list of pairs comprised of class names and method names
     */
   def referringMethodCollector(tree: Tree,
@@ -303,9 +302,9 @@ class TreeTraverser {
 
         case Term.ApplyInfix(lhs, _, _, args) => {
           val argFound = args.foldLeft(false)((acc, arg) =>
-            acc || treeIsInTreeList(arg, globalScopeVarNamesOnly));
-          val lhsFound = treeIsInTreeList(lhs, globalScopeVarNamesOnly)
-                                         (argFound, lhsFound) match {
+            acc || treeIsInTreeList(arg, globalScopeVarNamesOnly))
+          val lhsFound = treeIsInTreeList(lhs, globalScopeVarNamesOnly);
+          (argFound, lhsFound) match {
             case (false, false) => acc
             case _ => (currentClass, currentMethod)::acc
           }
@@ -347,7 +346,7 @@ class TreeTraverser {
           val emptyList = List[(Type.Name, Term.Name)]()
           val collectedFromTry = inner(expr, currentClass, currentMethod, emptyList)
           val collectedFromFinally = finallyStats match {
-            case None => List()
+            case None       => List()
             case Some(expr) => inner(expr, currentClass, currentMethod, emptyList)
           }
           collectedFromTry ++ collectedFromFinally ++ acc
@@ -400,5 +399,79 @@ class TreeTraverser {
       }
     }
     inner(tree, Type.Name("ph"), Term.Name("ph"), List());
+  }
+
+  /**
+    * Looks for all callers of the given callee.
+    *
+    * @param tree the tree in which to look for callers.
+    * @param callee the callee in question.
+    */
+  def callerCollector(tree: Tree, callee: (Type.Name, Term.Name)) = {
+    def inner(tree: Tree, acc: List[(Type.Name, Term.Name)]) = tree match {
+      /* ============ atoms ============ */
+
+      case _: Lit => throw TODO
+
+      case Pat.Var(varName) => throw TODO
+
+      case termName: Term.Name => throw TODO
+
+      /* ============ statements ============ */
+
+      case Defn.Val(_, _, _, term) => throw TODO
+
+      case Defn.Var(_, _, _, termOpt) => throw TODO
+
+      case Term.Select(term, name) => throw TODO
+
+      case Term.Apply(_, args) => throw TODO
+
+      case Term.ApplyUsing(_, args) => throw TODO
+
+      case Term.ApplyInfix(lhs, _, _, args) => throw TODO
+
+      case Term.ApplyUnary(_, arg) => throw TODO
+
+      case Term.Assign(lhs, rhs) => throw TODO
+
+      case Term.Return(expr) => throw TODO
+
+      case Term.New(Init(_, _, argss)) => throw TODO
+
+      /* ============ Bigger statements ============ */
+
+      case Term.Block(stats) => throw TODO
+
+      case Term.If(cond, thenBranch, elseBranch) => throw TODO
+
+      case Term.Try(expr, _, finallyStats) => throw TODO
+
+      case Term.While(cond, body) => throw TODO
+
+      case Term.For(_, body) => throw TODO
+
+      case Term.Throw(expr) => throw TODO
+
+      /* ============ Beyond statement levels ============ */
+
+      case defn @ Defn.Def(_, newMethodName, _, _, _, stat) if isDefun(defn) => throw TODO
+
+      case Defn.Class(_, newClassName, _, _, Template(_, _, _, stats)) => throw TODO
+
+      case Defn.Object(_, Term.Name(newClassNameString), Template(_, _, _, stats)) => throw TODO
+
+      case Source(stats) => throw TODO
+
+      case Pkg(_, stats) => throw TODO
+
+      case _: Import => throw TODO
+
+      case otherwise => {
+        println(s"""You missed (referringMethodCollector/inner): $otherwise
+                  which is: ${otherwise.productPrefix}""")
+        acc
+      }
+    }
   }
 }
