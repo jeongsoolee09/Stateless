@@ -22,6 +22,11 @@ version := "1.0"
 // place like Sonatype or Bintray.
 
 
+// <groupId>org.jgrapht</groupId>
+//   <artifactId>jgrapht-core</artifactId>
+//   <version>1.5.1</version>
+
+
 // Want to use a published library in your project?
 // You can define other libraries as dependencies in your build like this:
 
@@ -29,6 +34,7 @@ libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % 
 libraryDependencies += "org.scalameta" %% "scalameta" % "4.4.18"
 libraryDependencies += "com.lihaoyi" %% "ammonite-ops" % "2.3.8"
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.9"
+libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.5.1"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.9" % "test"
 libraryDependencies += {
   val version = scalaBinaryVersion.value match {
