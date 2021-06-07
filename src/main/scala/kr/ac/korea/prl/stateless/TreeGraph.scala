@@ -5,9 +5,7 @@ import org.jgrapht.Graphs._
 
 import scala.meta._
 import scala.meta.contrib._
-import scala.util.Either
 import scala.collection.JavaConverters._
-import scala.util.Try
 
 object TODO extends Exception
 
@@ -76,8 +74,6 @@ class TreeGraph {
         DirectedAcyclicGraph[Tree, DefaultEdge] = {
       tree match {
 
-        /* ============ atoms ============ */
-
         case current @ Type.Param(mods, name, tparasm, tbounds, vbounds, cbounds) => {
           // TypeParameter: add as is
           acc.addVertex(current)
@@ -136,9 +132,6 @@ class TreeGraph {
           acc.addEdge(previous, modifier)
           acc
         }
-
-          /* ============ statements ============ */
-          // We add statements under its productPrefix
 
         case current @ Defn.Val(modifiers, patterns, typeOpt, term) => {
           acc.addVertex(current)
@@ -296,8 +289,6 @@ class TreeGraph {
           acc
         }
 
-          /* ============ Bigger statements ============ */
-
         case current @ Term.Block(stats) => {
           acc.addVertex(current)
           if (!previous.isEqual(current))
@@ -383,8 +374,6 @@ class TreeGraph {
 
           acc
         }
-
-          /* ============ Beyond statement levels ============ */
 
         case current @ Defn.Def(mods, name, tparams, paramss, decltpe, body)
             if isDefun(current) => {
@@ -534,10 +523,9 @@ class TreeGraph {
           acc
         }
 
-        case _: Import => {
+        case _: Import =>
           // ignore imports
           acc
-        }
 
         case current: Pat => {
           // Pattern: add as is
@@ -556,19 +544,4 @@ class TreeGraph {
     }
     inner(tree, tree, new DirectedAcyclicGraph[Tree, DefaultEdge](classOf[DefaultEdge]))
   }
-  // testing area
-  // graphFromMetaTree(q"1")
-  // graphFromMetaTree(q"x")
-  // graphFromMetaTree(q"private val x: Int = 1")
-  // graphFromMetaTree(q"private var x: Int = 1")
-  // graphFromMetaTree(q"o.f.g.h")
-  // graphFromMetaTree(q"f(x1, x2, x3)")
-  // graphFromMetaTree(q"1+2+3+4+5")
-  // graphFromMetaTree(q"-(-(-x))")
-  // graphFromMetaTree(q"x = y")
-  // graphFromMetaTree(q"val x = new Object()")
-  // graphFromMetaTree(q"throw new Exception()")
-  // graphFromMetaTree(q"""def f(x: Int) = x+1""")
-//   graphFromMetaTree(q"""class Hey[Jude](sad: Int, song: Double) { def f(x:Int) = x+1
-// def g(x: Int) = x+2}""")
 }
