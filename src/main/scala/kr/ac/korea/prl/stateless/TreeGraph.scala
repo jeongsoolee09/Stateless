@@ -11,37 +11,6 @@ object TODO extends Exception
 
 class TreeGraph {
 
-  /* ============ Some Test-Driving ============ */
-  def makeGraph() = {
-    val graph = new DirectedAcyclicGraph[Int, DefaultEdge](classOf[DefaultEdge])
-    graph.addVertex(1)
-    graph.addVertex(2)
-    graph.addVertex(3)
-
-    graph.addEdge(1, 2)
-    graph.addEdge(1, 3)
-    graph
-  }
-
-  def makeGraph2() = {
-    val graph = new DirectedAcyclicGraph[Int, DefaultEdge](classOf[DefaultEdge])
-    graph.addVertex(4)
-    graph.addVertex(5)
-    graph.addVertex(6)
-
-    graph.addEdge(4, 5)
-    graph.addEdge(4, 6)
-    graph
-  }
-
-  def traverseGraph(graph: DirectedAcyclicGraph[Int, DefaultEdge], start: Int) = {
-    val iterator = new DepthFirstIterator(graph, start)
-    while (iterator.hasNext()) {
-      val x = iterator.next()
-      println(x)
-    }
-  }
-
   def isDefun(tree: Tree): Boolean = tree match {
     case Defn.Def(_, _, _, paramList, _, _) => !paramList.isEmpty
     case _                                  => false
