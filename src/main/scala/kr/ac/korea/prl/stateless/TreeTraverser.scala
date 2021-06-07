@@ -407,17 +407,28 @@ class TreeTraverser {
     * @param tree the tree in which to look for callers.
     * @param callee the callee in question.
     */
-  def callerCollector(tree: Tree, callee: (Type.Name, Term.Name)) = {
-    def inner(tree: Tree, acc: List[(Type.Name, Term.Name)]) = tree match {
+  def callerCollector(tree: Tree, callee: (Type.Name, Term.Name)):
+      List[(Type.Name, Term.Name)] = {
+
+    def inner(tree: Tree, acc: List[(Type.Name, Term.Name)]):
+        List[(Type.Name, Term.Name)] = tree match {
+
       /* ============ atoms ============ */
 
-      case _: Lit => throw TODO
+      case _: Lit => acc
 
-      case Pat.Var(varName) => throw TODO
+      case Pat.Var(varName) => acc
 
-      case termName: Term.Name => throw TODO
+      case termName: Term.Name =>
+        /* NOTE: This step is crucial! */
+        // val classType = findClass(tree, termName)
+        // if (checkForClass(tree, termName))
 
-      /* ============ statements ============ */
+        // else
+
+        throw TODO
+
+        /* ============ statements ============ */
 
       case Defn.Val(_, _, _, term) => throw TODO
 
@@ -439,7 +450,7 @@ class TreeTraverser {
 
       case Term.New(Init(_, _, argss)) => throw TODO
 
-      /* ============ Bigger statements ============ */
+        /* ============ Bigger statements ============ */
 
       case Term.Block(stats) => throw TODO
 
@@ -453,7 +464,7 @@ class TreeTraverser {
 
       case Term.Throw(expr) => throw TODO
 
-      /* ============ Beyond statement levels ============ */
+        /* ============ Beyond statement levels ============ */
 
       case defn @ Defn.Def(_, newMethodName, _, _, _, stat) if isDefun(defn) => throw TODO
 
@@ -473,5 +484,6 @@ class TreeTraverser {
         acc
       }
     }
+    inner(tree, List())
   }
 }
