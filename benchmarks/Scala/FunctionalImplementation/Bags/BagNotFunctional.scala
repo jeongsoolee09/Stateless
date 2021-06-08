@@ -20,7 +20,8 @@ class Bag[Element] {
     else if (node.nextElement == null) s"${node.content} -> nil"
     else s"${node.content} -> ${node.nextElement.content}"
 
-  def stateToString() = s"node: ${nodeToString(firstElement)}, size: ${size}"
+  def stateToString() =
+    "node: "+nodeToString(firstElement).toString()+", size: "+size.toString()
 }
 
 object Main {
