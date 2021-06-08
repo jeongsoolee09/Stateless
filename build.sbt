@@ -35,6 +35,7 @@ libraryDependencies += "org.scalameta" %% "scalameta" % "4.4.18"
 libraryDependencies += "com.lihaoyi" %% "ammonite-ops" % "2.3.8"
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.9"
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.5.1"
+libraryDependencies += "org.jgrapht" % "jgrapht-io" % "1.5.1"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.9" % "test"
 libraryDependencies += {
   val version = scalaBinaryVersion.value match {
