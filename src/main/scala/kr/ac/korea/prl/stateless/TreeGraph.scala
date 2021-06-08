@@ -1,7 +1,12 @@
+package kr.ac.korea.prl.stateless.TreeGraph
+
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse._
 import org.jgrapht.graph.DefaultEdge
 import org.jgrapht.Graphs._
+import org.jgrapht.nio.dot.DOTExporter
+
+import java.io.File
 
 import scala.meta._
 import scala.meta.contrib._
@@ -9,12 +14,13 @@ import scala.collection.JavaConverters._
 
 object TODO extends Exception
 
-class TreeGraph {
+object TreeGraph {
 
   def isDefun(tree: Tree): Boolean = tree match {
     case Defn.Def(_, _, _, paramList, _, _) => !paramList.isEmpty
     case _                                  => false
   }
+
 
   def findRoot[A](graph: DirectedAcyclicGraph[A, DefaultEdge]): A = {
     val vertices = graph.vertexSet.asScala.toList
@@ -27,6 +33,7 @@ class TreeGraph {
     rootTuples.head._1
   }
 
+
   def appendGraph[A](graph1: DirectedAcyclicGraph[A, DefaultEdge],
                      dockingPoint: A,
                      graph2: DirectedAcyclicGraph[A, DefaultEdge]): DirectedAcyclicGraph[A, DefaultEdge] = {
@@ -35,7 +42,8 @@ class TreeGraph {
     graph1
   }
 
-  def graphFromMetaTree(tree: Tree) = {
+
+  def graphFromMetaTree(tree: Tree): DirectedAcyclicGraph[Tree, DefaultEdge] = {
 
     def inner(previous: Tree,
               tree: Tree,
@@ -124,6 +132,21 @@ class TreeGraph {
           inner(current, term, acc)
           acc
         }
+
+        case current @ Term.Function(param, body) => {
+          acc.addVertex(current)
+
+          if (!previous.isEqual(current))
+            acc.addEdge(previous, current)
+
+          // param
+          param.foreach(param => inner(current, param.asInstanceOf[Tree], acc))
+
+          // body
+          inner(current, body, acc)
+          acc
+        }
+
 
         case current @ Defn.Var(mods, pats, decltype, rhs) => {
           acc.addVertex(current)
@@ -512,5 +535,42 @@ class TreeGraph {
       }
     }
     inner(tree, tree, new DirectedAcyclicGraph[Tree, DefaultEdge](classOf[DefaultEdge]))
+  }
+
+
+  def truncatedPrint(tree: Tree): String = {
+    val string = tree.toString()
+    string.slice(0, 15)+"..."
+  }
+
+
+  def truncate(string: String): String = {
+    "\""+string.slice(0, 15)+"..."+"\""
+  }
+
+
+  def treeGraphToStringGraph(graph: DirectedAcyclicGraph[Tree, DefaultEdge]):
+      DirectedAcyclicGraph[String, DefaultEdge] = {
+    val vertexList = graph.vertexSet.asScala.toList
+    val vertexStringList = vertexList.map(vertex => truncate(vertex.toString))
+
+    val out = new DirectedAcyclicGraph[String, DefaultEdge](classOf[DefaultEdge])
+
+    for (edge <- graph.edgeSet.asScala) {
+      val source = graph.getEdgeSource(edge)
+      val target = graph.getEdgeTarget(edge)
+      out.addVertex(source.toString)
+      out.addVertex(target.toString)
+      out.addEdge(source.toString, target.toString)
+    }
+
+    out
+  }
+
+
+  def generateDOT(tree: Tree, filename: String): Unit = {
+    val treeGraph = treeGraphToStringGraph(graphFromMetaTree(tree))
+    val file = new File(filename)
+    new DOTExporter[String, DefaultEdge](vertex => truncate(vertex)).exportGraph(treeGraph, file)
   }
 }

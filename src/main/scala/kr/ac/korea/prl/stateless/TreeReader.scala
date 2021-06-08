@@ -6,7 +6,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.net.URI
 
-class TreeReader {
+object TreeReader {
 
   def read(uri: String): Tree = {
     // 일단은 하드코딩

@@ -3,13 +3,21 @@ package kr.ac.korea.prl.stateless.TreeTraverser
 import scala.annotation.tailrec
 import scala.meta._
 import scala.meta.contrib._
+import scala.collection.mutable.ListBuffer
+
 import java.io.InvalidClassException
+
+import org.jgrapht.traverse.BreadthFirstIterator
+import org.jgrapht.graph.DefaultEdge
+
+import kr.ac.korea.prl.stateless.TreeGraph._
+import org.jgrapht.graph.DirectedAcyclicGraph
 
 object ThisIsImpossible extends Exception
 
 object TODO extends Exception
 
-class TreeTraverser {
+object TreeTraverser {
 
   def truncatedPrint(tree: Tree): String = {
     val string = tree.toString()
@@ -401,6 +409,14 @@ class TreeTraverser {
     inner(tree, Type.Name("ph"), Term.Name("ph"), List());
   }
 
+
+  def findMyClass(elem: Tree,
+                  treeGraph: DirectedAcyclicGraph[Tree, DefaultEdge]):
+  Type.Name = {
+    throw TODO
+  }
+
+
   /**
     * Looks for all callers of the given callee.
     *
@@ -409,81 +425,29 @@ class TreeTraverser {
     */
   def callerCollector(tree: Tree, callee: (Type.Name, Term.Name)):
       List[(Type.Name, Term.Name)] = {
-
-    def inner(tree: Tree, acc: List[(Type.Name, Term.Name)]):
-        List[(Type.Name, Term.Name)] = tree match {
-
-      /* ============ atoms ============ */
-
-      case _: Lit => acc
-
-      case Pat.Var(varName) => acc
-
-      case termName: Term.Name =>
-        /* NOTE: This step is crucial! */
-        // val classType = findClass(tree, termName)
-        // if (checkForClass(tree, termName))
-
-        // else
-
-        throw TODO
-
-        /* ============ statements ============ */
-
-      case Defn.Val(_, _, _, term) => throw TODO
-
-      case Defn.Var(_, _, _, termOpt) => throw TODO
-
-      case Term.Select(term, name) => throw TODO
-
-      case Term.Apply(_, args) => throw TODO
-
-      case Term.ApplyUsing(_, args) => throw TODO
-
-      case Term.ApplyInfix(lhs, _, _, args) => throw TODO
-
-      case Term.ApplyUnary(_, arg) => throw TODO
-
-      case Term.Assign(lhs, rhs) => throw TODO
-
-      case Term.Return(expr) => throw TODO
-
-      case Term.New(Init(_, _, argss)) => throw TODO
-
-        /* ============ Bigger statements ============ */
-
-      case Term.Block(stats) => throw TODO
-
-      case Term.If(cond, thenBranch, elseBranch) => throw TODO
-
-      case Term.Try(expr, _, finallyStats) => throw TODO
-
-      case Term.While(cond, body) => throw TODO
-
-      case Term.For(_, body) => throw TODO
-
-      case Term.Throw(expr) => throw TODO
-
-        /* ============ Beyond statement levels ============ */
-
-      case defn @ Defn.Def(_, newMethodName, _, _, _, stat) if isDefun(defn) => throw TODO
-
-      case Defn.Class(_, newClassName, _, _, Template(_, _, _, stats)) => throw TODO
-
-      case Defn.Object(_, Term.Name(newClassNameString), Template(_, _, _, stats)) => throw TODO
-
-      case Source(stats) => throw TODO
-
-      case Pkg(_, stats) => throw TODO
-
-      case _: Import => throw TODO
-
-      case otherwise => {
-        println(s"""You missed (referringMethodCollector/inner): $otherwise
-                  which is: ${otherwise.productPrefix}""")
-        acc
+    val treeGraph = TreeGraph.graphFromMetaTree(tree)
+    val iterator = new BreadthFirstIterator(treeGraph)
+    var list = ListBuffer[(Type.Name, Term.Name)]()
+    while (iterator.hasNext) {
+      val elem = iterator.next()
+      if (isDefun(elem)) {
+        // spawn another BFS
+        val innerIterator = new BreadthFirstIterator(TreeGraph.graphFromMetaTree(elem))
+        // look for calls
+        while (innerIterator.hasNext) {
+          val smoltree = innerIterator.next()
+          if (smoltree.isInstanceOf[Term.Apply]) {
+            if (smoltree.asInstanceOf[Term.Apply]
+                  .fun
+                  .asInstanceOf[Term.Name]
+                  .isEqual(tree.asInstanceOf[Term.Name]))
+              list.+=((findMyClass(smoltree, TreeGraph.graphFromMetaTree(tree)),
+                      smoltree.asInstanceOf[Term.Name]))
+          }
+        }
       }
     }
-    inner(tree, List())
+    list.toList
   }
+
 }
