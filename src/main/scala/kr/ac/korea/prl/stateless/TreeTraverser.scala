@@ -15,8 +15,6 @@ import org.jgrapht.graph.DefaultEdge
 import kr.ac.korea.prl.stateless.TreeGraph._
 import org.jgrapht.graph.DirectedAcyclicGraph
 
-object ThisIsImpossible extends Exception
-
 object TODO extends Exception
 object ThisIsImpossible extends Exception
 
@@ -249,8 +247,6 @@ object TreeTraverser {
       List[(Type.Name, Term.Name)] = {
     val globalScopeVarNamesOnly: List[Term.Name] = vars.filter(varTup =>
       varTup._2.isEqual(Term.Name("ph"))).map(_._3)
-
-    println("looking for these: "+ globalScopeVarNamesOnly)
 
     def inner(tree: Tree,
               currentClass: Type.Name,
@@ -496,5 +492,4 @@ object TreeTraverser {
     }
     list.toList
   }
-
 }
