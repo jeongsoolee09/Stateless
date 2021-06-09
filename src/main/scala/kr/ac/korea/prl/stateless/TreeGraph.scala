@@ -51,7 +51,7 @@ object TreeGraph {
         DirectedAcyclicGraph[Tree, DefaultEdge] = {
       tree match {
 
-        case current @ Type.Param(mods, name, tparasm, tbounds, vbounds, cbounds) => {
+        case current @ Type.Param(mods, name, tparams, tbounds, vbounds, cbounds) => {
           // TypeParameter: add as is
           acc.addVertex(current)
           if (!previous.isEqual(current))
@@ -181,6 +181,16 @@ object TreeGraph {
           acc.addVertex(name.asInstanceOf[Tree])
           acc.addEdge(current, name.asInstanceOf[Tree])
           inner(current, term.asInstanceOf[Tree], acc)
+          acc
+        }
+
+        case current @ Term.Interpolate(prefix, parts, args) => {
+          acc.addVertex(current)
+          if (!previous.isEqual(current))
+            acc.addEdge(previous, current)
+
+          // args
+          args.foreach(inner(current, _, acc))
           acc
         }
 
@@ -529,7 +539,8 @@ object TreeGraph {
 
         case otherwise: Any => {
           println(s"""You missed (referringMethodCollector/inner): $otherwise
-                  which is: ${otherwise.productPrefix}""")
+                  which is: ${otherwise.productPrefix}
+                  and its structure is: ${otherwise.structure}""")
           acc
         }
       }
@@ -572,5 +583,11 @@ object TreeGraph {
     val treeGraph = treeGraphToStringGraph(graphFromMetaTree(tree))
     val file = new File(filename)
     new DOTExporter[String, DefaultEdge](vertex => truncate(vertex)).exportGraph(treeGraph, file)
+  }
+
+
+  def defunIsInGraph(defun: Defn.Def, graph: DirectedAcyclicGraph[Tree, DefaultEdge]) = {
+    val vertexList = graph.vertexSet().asScala.toList
+    vertexList.filter(isDefun)
   }
 }
