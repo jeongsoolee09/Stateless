@@ -4,6 +4,8 @@ import scala.annotation.tailrec
 import scala.meta._
 import scala.meta.contrib._
 import scala.collection.mutable.ListBuffer
+import scala.collection.JavaConverters._
+import scala.math.Ordering.Int
 
 import java.io.InvalidClassException
 
@@ -16,6 +18,7 @@ import org.jgrapht.graph.DirectedAcyclicGraph
 object ThisIsImpossible extends Exception
 
 object TODO extends Exception
+object ThisIsImpossible extends Exception
 
 object TreeTraverser {
 
@@ -288,6 +291,15 @@ object TreeTraverser {
           else
             acc
 
+        case Term.Interpolate(prefix, parts, args) => {
+          val found = args.foldLeft(false)((acc, arg) =>
+            acc || treeIsInTreeList(arg, globalScopeVarNamesOnly))
+          if (found)
+            (currentClass, currentMethod)::acc
+          else
+            acc
+        }
+
         case Term.Select(term, name) =>
           inner(term, currentClass, currentMethod, acc)
 
@@ -400,8 +412,7 @@ object TreeTraverser {
             inner(elem, currentClass, currentMethod, List())++a) ++ acc
 
         case otherwise => {
-          println("You missed (referringMethodCollector/inner): " + otherwise +
-                    " which is: " + otherwise.productPrefix)
+          println(s"""You missed (referringMethodCollector/inner): ${otherwise} which is: ${otherwise.productPrefix} and its structure is ${otherwise.structure}""")
           acc
         }
       }
@@ -410,10 +421,42 @@ object TreeTraverser {
   }
 
 
+  /**
+    * Find the key with maximum value in a list of tuples (alist).
+    *
+    * @param alist: Tuple list where the second element is an integer.
+    * @return the max key with the maximum value.
+    */
+  def findKeyWithMaxVal[A, Int](alist: List[(A, Int)]): A = {
+
+    implicit def orderingInt[Int]: Ordering[Int] =
+      Ordering.by(identity)
+
+    val vals = alist.map(_._2)
+    val maxVal = vals.max(orderingInt[Int])
+    val cellsWithMaxVal = alist.filter(tup => tup._2 == maxVal)
+    assert(cellsWithMaxVal.length == 1)
+    cellsWithMaxVal.head._1
+  }
+
+
   def findMyClass(elem: Tree,
                   treeGraph: DirectedAcyclicGraph[Tree, DefaultEdge]):
   Type.Name = {
-    throw TODO
+    // find elem's predecessor in treeGraph whose class is Defn.Class or Defn.Object
+    def isClassDef(tree: Tree): Boolean = tree match {
+      case Defn.Class(_)  => true
+      case Defn.Object(_) => true
+      case _              => false
+    }
+
+    val classes = treeGraph.getAncestors(elem).asScala.toList.filter(isClassDef)
+    // now, get the most specific class
+    val bfsIterator = new BreadthFirstIterator[Tree, DefaultEdge](treeGraph)
+    val classesAndDepth = classes.map(klass => (klass, bfsIterator.getDepth(klass)))
+
+    // get the maximum class in terms of depth
+    findKeyWithMaxVal(classesAndDepth).asInstanceOf[Type.Name]
   }
 
 
@@ -427,7 +470,8 @@ object TreeTraverser {
       List[(Type.Name, Term.Name)] = {
     val treeGraph = TreeGraph.graphFromMetaTree(tree)
     val iterator = new BreadthFirstIterator(treeGraph)
-    var list = ListBuffer[(Type.Name, Term.Name)]()
+    val list = ListBuffer[(Type.Name, Term.Name)]()
+
     while (iterator.hasNext) {
       val elem = iterator.next()
       if (isDefun(elem)) {
@@ -437,12 +481,15 @@ object TreeTraverser {
         while (innerIterator.hasNext) {
           val smoltree = innerIterator.next()
           if (smoltree.isInstanceOf[Term.Apply]) {
-            if (smoltree.asInstanceOf[Term.Apply]
-                  .fun
-                  .asInstanceOf[Term.Name]
-                  .isEqual(tree.asInstanceOf[Term.Name]))
+            val methodIdentifierMatches = smoltree.asInstanceOf[Term.Apply]
+              .fun
+              .asInstanceOf[Term.Name]
+              .isEqual(tree.asInstanceOf[Term.Name])
+            val methodClassMatches = findMyClass(smoltree, TreeGraph.graphFromMetaTree(tree)).
+              isEqual(tree.asInstanceOf[Type.Name])
+            if (methodIdentifierMatches && methodClassMatches)
               list.+=((findMyClass(smoltree, TreeGraph.graphFromMetaTree(tree)),
-                      smoltree.asInstanceOf[Term.Name]))
+                       smoltree.asInstanceOf[Term.Name]))
           }
         }
       }
