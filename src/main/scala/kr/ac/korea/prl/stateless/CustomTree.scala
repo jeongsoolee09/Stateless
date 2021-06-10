@@ -14,132 +14,245 @@ sealed trait CustomTree
 sealed trait Ref extends CustomTree
 
 /* ============ Name ============ */
-case class Name(value: LitString) extends Ref
-case class Init(tpe: Term, name: Name, argss: List[List[Term]]) extends Ref
+case class Name(value: String) extends Ref {
+  def apply(value: String) = new Name(value)
+}
+case class Init(tpe: Type, name: Name, argss: List[List[Term]]) extends Ref {
+  def apply(tpe: Type, name: Name, argss: List[List[Term]]) = new Init(tpe, name, argss)
+}
 
 /* ============ Member ============ */
 sealed trait Member extends CustomTree
 
 /* ============ Member ============ */
-case class Self(name: Name, decltpe: Option[Type]) extends Member
+case class Self(name: Name, decltpe: Option[Type]) extends Member {
+  def apply(name: Name, decltpe: Option[Type]) = new Self(name, decltpe)
+}
 
 /* ============ Type ============ */
 sealed trait Type extends CustomTree
-case class TypeBounds(lo: Option[Type], hi: Option[Type]) extends Type
-case class TypeParam(mods: List[Mod],
-                     name: Name,
-                     tparams: List[TypeParam],
-                     tbounds: TypeBounds,
-                     vbounds: List[Type],
-                     cbounds: List[Type]) extends Type
-case class TypeName(value: LitString) extends Type
+case class TypeBounds(lo: Option[Type], hi: Option[Type]) extends Type {
+  def apply(lo: Option[Type], hi: Option[Type]) = new TypeBounds(lo, hi)
+}
+case class TypeParam(mods: List[Mod], name: Name, tparams: List[TypeParam], tbounds: TypeBounds, vbounds: List[Type], cbounds: List[Type]) extends Type {
+  def apply(mods: List[Mod], name: Name, tparams: List[TypeParam], tbounds: TypeBounds, vbounds: List[Type], cbounds: List[Type]) = new TypeParam(mods, name, tparams, tbounds, vbounds, cbounds)
+}
+case class TypeName(value: String) extends Type {
+  def apply(value: String) = new TypeName(value)
+}
 
 /* ============ Stat ============ */
 sealed trait Stat extends CustomTree
 
-case class Case(pat: Pat, cond: Option[Term], body: Term) extends CustomTree
+case class Case(pat: Pat, cond: Option[Term], body: Term) extends CustomTree {
+  def apply(pat: Pat, cond: Option[Term], body: Term) = new Case(pat, cond, body)
+}
 
 /* ============ Enumerator ============ */
 sealed trait Enumerator extends CustomTree
-case class Generator(pat: Pat, rhs: Term) extends Enumerator
-case class CaseGenerator(pat: Pat, rhs: Term) extends Enumerator
-case class Val(pat: Pat, rhs: Term) extends Enumerator
-case class Guard(cond: Term) extends Enumerator
+case class Generator(pat: Pat, rhs: Term) extends Enumerator {
+  def apply(pat: Pat, rhs: Term) = new Generator(pat, rhs)
+}
+case class CaseGenerator(pat: Pat, rhs: Term) extends Enumerator {
+  def apply(pat: Pat, rhs: Term) = new CaseGenerator(pat, rhs)
+}
+case class Val(pat: Pat, rhs: Term) extends Enumerator {
+  def apply(pat: Pat, rhs: Term) = new Val(pat, rhs)
+}
+case class Guard(cond: Term) extends Enumerator {
+  def apply(cond: Term) = new Guard(cond)
+}
 
 /* ============ Term ============ */
 sealed trait Term extends Stat
-case class TermName(value: LitString) extends Term
-case class TermThis(qual: Name) extends Term
-case class TermSuper(thisp: Name) extends Term
+case class TermName(value: String) extends Term {
+  def apply(value: String) = new TermName(value)
+}
+case class TermThis(qual: Name) extends Term {
+  def apply(qual: Name) = new TermThis(qual)
+}
+case class TermSuper(thisp: Name) extends Term {
+  def apply(thisp: Name) = new TermSuper(thisp)
+}
 sealed trait TermRef extends Term with Ref
-case class TermParam(mods: List[Mod], name: Name,
-                     decltpe: Option[Type], default: Option[Term]) extends Term
-case class TermLambda(params: List[TermParam], body: Term) extends Term
-case class TermSelect(qual: Term, name: TermName) extends Term
-case class TermInterpolate(prefix: Name, parts: List[Lit],
-                           args: List[Term]) extends Term
-case class TermApply(fun: Term, args: List[Term]) extends Term
-case class TermApplyUsing(fun: Term, args: List[Term]) extends Term
-case class TermApplyInfix(lhs: Term, op: Name,
-                          targs: List[Type], args: List[Term]) extends Term
-case class TermApplyUnary(op: Name, arg: Term) extends Term
-case class TermAssign(lhs: Term, rhs: Term) extends Term
-case class TermReturn(expr: Term) extends Term
-case class TermNew(init: Init) extends Term
-case class TermBlock(stats: List[Stat]) extends Term
-case class TermIf(cond: Term, thenp: Term, elsep: Term) extends Term
-case class TermTry(expr: Term, catchp: List[Case], finallyp: Option[Term]) extends Term
-case class TermWhile(expr: Term, body: Term) extends Term
-case class TermFor(enums: List[Enumerator], body: Term) extends Term
-case class TermThrow(expr: Term) extends Term
+case class TermParam(mods: List[Mod], name: Name, decltpe: Option[Type], default: Option[Term]) extends Term {
+  def apply(mods: List[Mod], name: Name, decltpe: Option[Type], default: Option[Term]) = new TermParam(mods, name, decltpe, default)
+}
+case class TermLambda(params: List[TermParam], body: Term) extends Term {
+  def apply(params: List[TermParam], body: Term) = new TermLambda(params, body)
+}
+case class TermSelect(qual: Term, name: TermName) extends Term {
+  def apply(qual: Term, name: TermName) = new TermSelect(qual, name)
+}
+case class TermInterpolate(prefix: Name, parts: List[Lit], args: List[Term]) extends Term {
+  def apply(prefix: Name, parts: List[Lit], args: List[Term]) = new TermInterpolate(prefix, parts, args)
+}
+case class TermApply(fun: Term, args: List[Term]) extends Term {
+  def apply(fun: Term, args: List[Term]) = new TermApply(fun, args)
+}
+case class TermApplyUsing(fun: Term, args: List[Term]) extends Term {
+  def apply(fun: Term, args: List[Term]) = new TermApplyUsing(fun, args)
+}
+case class TermApplyInfix(lhs: Term, op: Name, targs: List[Type], args: List[Term]) extends Term {
+  def apply(lhs: Term, op: Name, targs: List[Type], args: List[Term]) = new TermApplyInfix(lhs, op, targs, args)
+}
+case class TermApplyUnary(op: Name, arg: Term) extends Term {
+  def apply(op: Name, arg: Term) = new TermApplyUnary(op, arg)
+}
+case class TermAssign(lhs: Term, rhs: Term) extends Term {
+  def apply(lhs: Term, rhs: Term) = new TermAssign(lhs, rhs)
+}
+case class TermReturn(expr: Term) extends Term {
+  def apply(expr: Term) = new TermReturn(expr)
+}
+case class TermNew(init: Init) extends Term {
+  def apply(init: Init) = new TermNew(init)
+}
+case class TermBlock(stats: List[Stat]) extends Term {
+  def apply(stats: List[Stat]) = new TermBlock(stats)
+}
+case class TermIf(cond: Term, thenp: Term, elsep: Term) extends Term {
+  def apply(cond: Term, thenp: Term, elsep: Term) = new TermIf(cond, thenp, elsep)
+}
+case class TermTry(expr: Term, catchp: List[Case], finallyp: Option[Term]) extends Term {
+  def apply(expr: Term, catchp: List[Case], finallyp: Option[Term]) = new TermTry(expr, catchp, finallyp)
+}
+case class TermWhile(expr: Term, body: Term) extends Term {
+  def apply(expr: Term, body: Term) = new TermWhile(expr, body)
+}
+case class TermFor(enums: List[Enumerator], body: Term) extends Term {
+  def apply(enums: List[Enumerator], body: Term) = new TermFor(enums, body)
+}
+case class TermThrow(expr: Term) extends Term {
+  def apply(expr: Term) = new TermThrow(expr)
+}
 
 /* ============ Lit ============ */
 sealed trait Lit extends Term with Pat with Type
-case class LitInt(value: scala.Int) extends Lit
-case class LitDouble(format: scala.Double) extends Lit
-case class LitFloat(format: scala.Float) extends Lit
-case class LitByte(value: scala.Byte) extends Lit
-case class LitShort(value: scala.Short) extends Lit
-case class LitChar(value: scala.Char) extends Lit
-case class LitLong(value: scala.Long) extends Lit
-case class LitBoolean(value: scala.Boolean) extends Lit
-case class LitUnit() extends Lit
-case class LitString(value: scala.Predef.String) extends Lit
-case class LitSymbol(value: scala.Symbol) extends Lit
+case class LitInt(value: scala.Int) extends Lit {
+  def apply(value: scala.Int) = new LitInt(value)
+}
+case class LitDouble(format: scala.Double) extends Lit {
+  def apply(format: scala.Double) = new LitDouble(format)
+}
+case class LitFloat(format: scala.Float) extends Lit {
+  def apply(format: scala.Float) = new LitFloat(format)
+}
+case class LitByte(value: scala.Byte) extends Lit {
+  def apply(value: scala.Byte) = new LitByte(value)
+}
+case class LitShort(value: scala.Short) extends Lit {
+  def apply(value: scala.Short) = new LitShort(value)
+}
+case class LitChar(value: scala.Char) extends Lit {
+  def apply(value: scala.Char) = new LitChar(value)
+}
+case class LitLong(value: scala.Long) extends Lit {
+  def apply(value: scala.Long) = new LitLong(value)
+}
+case class LitBoolean(value: scala.Boolean) extends Lit {
+  def apply(value: scala.Boolean) = new LitBoolean(value)
+}
+case class LitUnit() extends Lit {
+  def apply() = new LitUnit()
+}
+case class LitString(value: scala.Predef.String) extends Lit {
+  def apply(value: scala.Predef.String) = new LitString(value)
+}
+case class LitSymbol(value: scala.Symbol) extends Lit {
+  def apply(value: scala.Symbol) = new LitSymbol(value)
+}
 
 /* ============ Mod ============ */
 sealed trait Mod extends CustomTree
-case class Private(within: Ref) extends Mod
-case class Protected(within: Ref) extends Mod
-case class Implicit() extends Mod
-case class Abstract() extends Mod
-case class Override() extends Mod
-case class Super() extends Mod
-case class Final() extends Mod
+case class Private(within: Ref) extends Mod {
+  def apply(within: Ref) = new Private(within)
+}
+case class Protected(within: Ref) extends Mod {
+  def apply(within: Ref) = new Protected(within)
+}
+case class Implicit() extends Mod {
+  def apply() = new Implicit()
+}
+case class Abstract() extends Mod {
+  def apply() = new Abstract()
+}
+case class Override() extends Mod {
+  def apply() = new Override()
+}
+case class Super() extends Mod {
+  def apply() = new Super()
+}
+case class Final() extends Mod {
+  def apply() = new Final()
+}
 
 /* ============ Defn ============ */
 sealed trait Defn extends Stat
-case class DefVal(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs: Term) extends Defn
-case class DefVar(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs: Term) extends Defn
-case class DefDef(mods: List[Mod], name: TermName,
-                  tparams: List[TypeParam], params:List[List[TermParam]],
-                  decltpe: Type) extends Defn
-case class DefEnum(mods: List[Mod], name: TypeName,
-                   tparams: List[TypeParam], ctor: Primary,
-                   templ: Template) extends Defn
+case class DefVal(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs: Term) extends Defn {
+  def apply(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs: Term) = new DefVal(mods, pats, decltpe, rhs)
+}
+case class DefVar(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs: Term) extends Defn {
+  def apply(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs: Term) = new DefVar(mods, pats, decltpe, rhs)
+}
+case class DefDef(mods: List[Mod], name: TermName, tparams: List[TypeParam], params:List[List[TermParam]], decltpe: Type) extends Defn {
+  def apply(mods: List[Mod], name: TermName, tparams: List[TypeParam], params:List[List[TermParam]], decltpe: Type) = new DefDef(mods, name, tparams, params, decltpe)
+}
+case class DefEnum(mods: List[Mod], name: TypeName, tparams: List[TypeParam], ctor: Primary, templ: Template) extends Defn {
+  def apply(mods: List[Mod], name: TypeName, tparams: List[TypeParam], ctor: Primary, templ: Template) = new DefEnum(mods, name, tparams, ctor, templ)
+}
 
 /* ============ Ctor ============ */
 sealed trait Ctor extends CustomTree with Member
-case class Primary(mods: List[Mod], name: Name,
-                   paramss: List[List[TermParam]]) extends Ctor
-case class Secondary(mods: List[Mod], name: Name,
-                     paramss: List[List[TermParam]], init: Init,
-                     stats: List[Stat]) extends Ctor
+case class Primary(mods: List[Mod], name: Name, paramss: List[List[TermParam]]) extends Ctor {
+  def apply(mods: List[Mod], name: Name, paramss: List[List[TermParam]]) = new Primary(mods, name, paramss)
+}
+case class Secondary(mods: List[Mod], name: Name, paramss: List[List[TermParam]], init: Init, stats: List[Stat]) extends Ctor {
+  def apply(mods: List[Mod], name: Name, paramss: List[List[TermParam]], init: Init, stats: List[Stat]) = new Secondary(mods, name, paramss, init, stats)
+}
 
 /* ============ Template ============ */
-case class Template(early: List[Stat], inits: List[Init],
-                    self: Self, stats: List[Stat]) extends CustomTree
+case class Template(early: List[Stat], inits: List[Init], self: Self, stats: List[Stat]) extends CustomTree {
+  def apply(early: List[Stat], inits: List[Init], self: Self, stats: List[Stat]) = new Template(early, inits, self, stats)
+}
 
 /* ============ Source ============ */
-case class Source(stats: List[Stat]) extends CustomTree
+case class Source(stats: List[Stat]) extends CustomTree {
+  def apply(stats: List[Stat]) = new Source(stats)
+}
 
 /* ============ Pkg ============ */
-case class Pkg(ref: TermRef, stats: List[Stat]) extends Stat
+case class Pkg(ref: TermRef, stats: List[Stat]) extends Stat {
+  def apply(ref: TermRef, stats: List[Stat]) = new Pkg(ref, stats)
+}
 
 /* ============ Import ============ */
 sealed trait Importee extends CustomTree
-case class Importer(ref: TermRef, importees: List[Importee]) extends CustomTree
-case class ImporteeWildcard() extends Importee
-case class ImporteeGiven(tpe: Type) extends Importee
-case class ImporteeGivenAll() extends Importee
-case class ImporteeName(name: Name) extends Importee
+case class Importer(ref: TermRef, importees: List[Importee]) extends CustomTree {
+  def apply(ref: TermRef, importees: List[Importee]) = new Importer(ref, importees)
+}
+case class ImporteeWildcard() extends Importee {
+  def apply() = new ImporteeWildcard()
+}
+case class ImporteeGiven(tpe: Type) extends Importee {
+  def apply(tpe: Type) = new ImporteeGiven(tpe)
+}
+case class ImporteeGivenAll() extends Importee {
+  def apply() = new ImporteeGivenAll()
+}
+case class ImporteeName(name: Name) extends Importee {
+  def apply(name: Name) = new ImporteeName(name)
+}
 
-case class Import(importers: List[Importer]) extends Stat
+case class Import(importers: List[Importer]) extends Stat {
+  def apply(importers: List[Importer]) = new Import(importers)
+}
 
 /* ============ Pat ============ */
 sealed trait Pat extends CustomTree
-case class PatVar(name: TermName) extends Pat
-
+case class PatVar(name: TermName) extends Pat {
+  def apply(name: TermName) = new PatVar(name)
+}
 
 object TODO extends Exception
 
@@ -152,10 +265,13 @@ object CustomTreeTranslator {
 
   def scalaMetaToCustomTree(smtree: scala.meta.Tree): CustomTree = smtree match {
 
-    case scala.meta.Name(value) => throw TODO
-    case scala.meta.Init(tpe, name, argss) => throw TODO
-
-    case scala.meta.Self(name, decltpe) => throw TODO
+    case scala.meta.Name(value) => Name(value)
+    case scala.meta.Init(tpe, name, argss) => {
+      Init(scalaMetaToCustomTree(tpe).asInstanceOf[Type],
+           scalaMetaToCustomTree(name).asInstanceOf[Name],
+           argss.map(_.map(scalaMetaToCustomTree(_).asInstanceOf[Term])))
+    }
+    case scala.meta.Self(name, decltpe) =>  throw TODO
 
     case current: scala.meta.Type => current match {
       case Type.Bounds(lo, hi) => throw TODO
@@ -264,7 +380,7 @@ object CustomTreeTranslator {
 
 
 
-    case Name(value: LitString) => throw TODO
+    case Name(value: String) => throw TODO
     case Init(tpe: Term, name: Name, argss: List[List[Term]]) => throw TODO
 
     case Self(name: Name, decltpe: Option[Type]) => throw TODO
@@ -277,7 +393,7 @@ object CustomTreeTranslator {
                      tbounds: TypeBounds,
                      vbounds: List[Type],
                      cbounds: List[Type]) => throw TODO
-      case TypeName(value: LitString) => throw TODO
+      case TypeName(value: String) => throw TODO
       case _ => throw new ThisMatchIsExhaustive()
     }
 
@@ -307,7 +423,7 @@ object CustomTreeTranslator {
 
       /* ============ Term ============ */
       case current: Term => current match {
-        case TermName(value: LitString) => throw TODO
+        case TermName(value: String) => throw TODO
         case TermThis(qual: Name) => throw TODO
         case TermSuper(thisp: Name) => throw TODO
         case TermParam(mods: List[Mod], name: Name,
@@ -383,8 +499,6 @@ object CustomTreeTranslator {
 
     /* ============ Source ============ */
     case Source(stats: List[Stat]) => throw TODO
-
-
 
     case current: Importee => current match {
       case ImporteeWildcard() => throw TODO
