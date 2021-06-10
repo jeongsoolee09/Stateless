@@ -6,6 +6,8 @@ package kr.ac.korea.prl.stateless.CustomTree
   *
   */
 
+import scala.meta.Tree
+
 sealed trait CustomTree
 
 /* ============ Ref ============ */
@@ -30,7 +32,7 @@ case class TypeParam(mods: List[Mod],
                      tbounds: TypeBounds,
                      vbounds: List[Type],
                      cbounds: List[Type]) extends Type
-case class TypeName(value: String)
+case class TypeName(value: String) extends Type
 
 /* ============ Stat ============ */
 sealed trait Stat extends CustomTree
@@ -39,10 +41,10 @@ case class Case(pat: Pat, cond: Option[Term], body: Term) extends CustomTree
 
 /* ============ Enumerator ============ */
 sealed trait Enumerator extends CustomTree
-class Generator(pat: Pat, rhs: Term) extends Enumerator
-class CaseGenerator(pat: Pat, rhs: Term) extends Enumerator
-class Val(pat: Pat, rhs: Term) extends Enumerator
-class Guard(cond: Term) extends Enumerator
+case class Generator(pat: Pat, rhs: Term) extends Enumerator
+case class CaseGenerator(pat: Pat, rhs: Term) extends Enumerator
+case class Val(pat: Pat, rhs: Term) extends Enumerator
+case class Guard(cond: Term) extends Enumerator
 
 /* ============ Term ============ */
 sealed trait Term extends Stat
@@ -136,4 +138,124 @@ case class Import(importers: List[Importer]) extends Stat
 
 /* ============ Pat ============ */
 sealed trait Pat extends CustomTree
-case class PatVar(name: TermName)
+case class PatVar(name: TermName) extends Pat
+
+
+object TODO extends Exception
+
+
+object CustomTreeTranslator {
+
+  /* I left the package qualifiers just for documentation */
+
+  // do a pattern matching on (smtree: scala.meta.Tree)
+  def scalaMetaToCustomTree(smtree: scala.meta.Tree): CustomTree = smtree match {
+    case _ => throw TODO
+  }
+
+  // do a pattern matching on (ctree: CustomTree)
+  def CustomTreeToScalaMeta(ctree: CustomTree): scala.meta.Tree = ctree match {
+    case Name(value: String) => throw TODO
+    case Init(tpe: Term, name: Name, argss: List[List[Term]]) => throw TODO
+    case Self(name: Name, decltpe: Option[Type]) => throw TODO
+    case TypeBounds(lo: Option[Type], hi: Option[Type]) => throw TODO
+    case TypeParam(mods: List[Mod],
+                   name: Name,
+                   tparams: List[TypeParam],
+                   tbounds: TypeBounds,
+                   vbounds: List[Type],
+                   cbounds: List[Type]) => throw TODO
+    case TypeName(value: String) => throw TODO
+    case Generator(pat: Pat, rhs: Term) => throw TODO
+    case CaseGenerator(pat: Pat, rhs: Term) => throw TODO
+    case Val(pat: Pat, rhs: Term) => throw TODO
+    case Guard(cond: Term) => throw TODO
+
+    /* ============ Term ============ */
+    case TermName(value: String) => throw TODO
+    case TermThis(qual: Name) => throw TODO
+    case TermSuper(thisp: Name) => throw TODO
+    case TermParam(mods: List[Mod], name: Name,
+                   decltpe: Option[Type], default: Option[Term]) => throw TODO
+    case TermLambda(params: List[TermParam], body: Term) => throw TODO
+    case TermSelect(qual: Term, name: TermName) => throw TODO
+    case TermInterpolate(prefix: Name, parts: List[Lit],
+                         args: List[Term]) => throw TODO
+    case TermApply(fun: Term, args: List[Term]) => throw TODO
+    case TermApplyUsing(fun: Term, args: List[Term]) => throw TODO
+    case TermApplyInfix(lhs: Term, op: Name,
+                        targs: List[Type], args: List[Term]) => throw TODO
+    case TermApplyUnary(op: Name, arg: Term) => throw TODO
+    case TermAssign(lhs: Term, rhs: Term) => throw TODO
+    case TermReturn(expr: Term) => throw TODO
+    case TermNew(init: Init) => throw TODO
+    case TermBlock(stats: List[Stat]) => throw TODO
+    case TermIf(cond: Term, thenp: Term, elsep: Term) => throw TODO
+    case TermTry(expr: Term, catchp: List[Case], finallyp: Option[Term]) => throw TODO
+    case TermWhile(expr: Term, body: Term) => throw TODO
+    case TermFor(enums: List[Enumerator], body: Term) => throw TODO
+    case TermThrow(expr: Term) => throw TODO
+
+    /* ============ Lit ============ */
+    case Int(value: Int) => throw TODO
+    case Double(format: Double) => throw TODO
+    case Float(format: Float) => throw TODO
+    case Byte(value: Byte) => throw TODO
+    case Short(value: Short) => throw TODO
+    case Char(value: Char) => throw TODO
+    case Long(value: Long) => throw TODO
+    case Boolean(value: Boolean) => throw TODO
+    case Unit() => throw TODO
+    case String(value: String) => throw TODO
+    case Symbol(value: Symbol) => throw TODO
+
+    /* ============ Mod ============ */
+    case Private(within: Ref) => throw TODO
+    case Protected(within: Ref) => throw TODO
+    case Implicit() => throw TODO
+    case Abstract() => throw TODO
+    case Override() => throw TODO
+    case Super() => throw TODO
+    case Final() => throw TODO
+
+    /* ============ Defn ============ */
+    case DefVal(mods: List[Mod], pats: List[Pat], decltpe: Type) => throw TODO
+    case DefVar(mods: List[Mod], pats: List[Pat], decltpe: Type) => throw TODO
+    case DefDef(mods: List[Mod], name: TermName,
+                tparams: List[TypeParam], params:List[List[TermParam]],
+                decltpe: Type) => throw TODO
+    case DefEnum(mods: List[Mod], name: TypeName,
+                 tparams: List[TypeParam], ctor: Primary,
+                 templ: Template) => throw TODO
+
+    /* ============ Ctor ============ */
+    case Primary(mods: List[Mod], name: Name,
+                 paramss: List[List[TermParam]]) => throw TODO
+    case Secondary(mods: List[Mod], name: Name,
+                   paramss: List[List[TermParam]], init: Init,
+                   stats: List[Stat]) => throw TODO
+
+    /* ============ Template ============ */
+    case Template(early: List[Stat], inits: List[Init],
+                  self: Self, stats: List[Stat]) => throw TODO
+
+    /* ============ Source ============ */
+    case Source(stats: List[Stat]) => throw TODO
+
+    /* ============ Pkg ============ */
+    case Pkg(ref: TermRef, stats: List[Stat]) => throw TODO
+
+    /* ============ Import ============ */
+    case Importer(ref: TermRef, importees: List[Importee]) => throw TODO
+    case ImporteeWildcard() => throw TODO
+    case ImporteeGiven(tpe: Type) => throw TODO
+    case ImporteeGivenAll() => throw TODO
+    case ImporteeName(name: Name) => throw TODO
+
+    case Import(importers: List[Importer]) => throw TODO
+
+    /* ============ Pat ============ */
+    case PatVar(name: TermName) => throw TODO
+  }
+
+}
