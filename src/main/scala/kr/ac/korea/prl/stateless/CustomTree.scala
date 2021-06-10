@@ -6,7 +6,7 @@ package kr.ac.korea.prl.stateless.CustomTree
   *
   */
 
-import scala.meta.Tree
+import scala.meta._
 
 sealed trait CustomTree
 
@@ -99,8 +99,8 @@ case class Final() extends Mod
 
 /* ============ Defn ============ */
 sealed trait Defn extends Stat
-case class DefVal(mods: List[Mod], pats: List[Pat], decltpe: Type) extends Defn
-case class DefVar(mods: List[Mod], pats: List[Pat], decltpe: Type) extends Defn
+case class DefVal(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs: Term) extends Defn
+case class DefVar(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs: Term) extends Defn
 case class DefDef(mods: List[Mod], name: TermName,
                   tparams: List[TypeParam], params:List[List[TermParam]],
                   decltpe: Type) extends Defn
@@ -143,14 +143,115 @@ case class PatVar(name: TermName) extends Pat
 
 object TODO extends Exception
 
+class NotSupportedMetaTree(tree: Tree) extends Exception
 
 object CustomTreeTranslator {
 
   /* I left the package qualifiers just for documentation */
 
-  // do a pattern matching on (smtree: scala.meta.Tree)
   def scalaMetaToCustomTree(smtree: scala.meta.Tree): CustomTree = smtree match {
-    case _ => throw TODO
+
+    case scala.meta.Name(value) => throw TODO
+    case scala.meta.Init(tpe, name, argss) => throw TODO
+
+    case scala.meta.Self(name, decltpe) => throw TODO
+
+    case current: scala.meta.Type => current match {
+      case Type.Bounds(lo, hi) => throw TODO
+      case Type.Param(mods, name, tparams,
+                      tbounds, vbounds, cbounds) => throw TODO
+      case Type.Name(value) => throw TODO
+      case otherwise => throw new NotSupportedMetaTree(otherwise)
+    }
+
+    case current: scala.meta.Enumerator => current match {
+      case Enumerator.Generator(pat, rhs) => throw TODO
+      case Enumerator.CaseGenerator(pat, rhs) => throw TODO
+      case Enumerator.Val(pat, rhs) => throw TODO
+      case Enumerator.Guard(cond) => throw TODO
+      case otherwise => throw new NotSupportedMetaTree(otherwise)
+    }
+
+    case current: scala.meta.Term => current match {
+      case Term.Name(name: Predef.String) => throw TODO
+      case Term.Param(mods, name, declpe, default) => throw TODO
+      case Term.Super(thisp) => throw TODO
+      case Term.Param(mods, name, decltpe, default) => throw TODO
+      case Term.Function(params, body) => throw TODO
+      case Term.Select(qual, name) => throw TODO
+      case Term.Interpolate(prefix, parts, args) => throw TODO
+      case Term.Apply(fun, args) => throw TODO
+      case Term.ApplyUsing(fun, args) => throw TODO
+      case Term.ApplyInfix(lhs, op, targs, args) => throw TODO
+      case Term.ApplyUnary(op, arg) => throw TODO
+      case Term.Assign(lhs, rhs) => throw TODO
+      case Term.Return(expr) => throw TODO
+      case Term.New(init) => throw TODO
+      case Term.Block(stats) => throw TODO
+      case Term.If(cond, thenp, elsep) => throw TODO
+      case Term.Try(expr, catchp, finallyp) => throw TODO
+      case Term.While(expr, body) => throw TODO
+      case Term.For(enums, body) => throw TODO
+      case Term.Throw(expr) => throw TODO
+
+      case current: scala.meta.Lit => current match {
+        case Lit.Int(_) => throw TODO
+        case Lit.Double(_) => throw TODO
+        case Lit.Float(_) => throw TODO
+        case Lit.Byte(_) => throw TODO
+        case Lit.Short(_) => throw TODO
+        case Lit.Char(_) => throw TODO
+        case Lit.Long(_) => throw TODO
+        case Lit.Boolean(_) => throw TODO
+        case Lit.Unit() => throw TODO
+        case Lit.String(_) => throw TODO
+        case otherwise => throw new NotSupportedMetaTree(otherwise)
+      }
+
+      case otherwise => throw new NotSupportedMetaTree(otherwise)
+    }
+
+    case current: scala.meta.Mod => current match {
+      case Mod.Private(within) => throw TODO
+      case Mod.Protected(within) => throw TODO
+      case Mod.Implicit() => throw TODO
+      case Mod.Abstract() => throw TODO
+      case Mod.Override() => throw TODO
+      case Mod.Super() => throw TODO
+      case Mod.Final() => throw TODO
+      case otherwise => throw new NotSupportedMetaTree(otherwise)
+    }
+
+    case current: scala.meta.Defn => current match {
+      case Defn.Val(mods, pats, decltpe, rhs) => throw TODO
+      case Defn.Var(mods, pats, decltpe, rhs) => throw TODO
+      case Defn.Def(mods, name, tparams, paramss, decltpe, body) => throw TODO
+      case Defn.Enum(mods, name, taprams, ctor, templ) => throw TODO
+      case otherwise => throw new NotSupportedMetaTree(otherwise)
+    }
+
+    case scala.meta.Template(early, inits, self, stats) => throw TODO
+
+    case scala.meta.Source(stats) => throw TODO
+
+    case scala.meta.Pkg(ref, stats) => throw TODO
+
+    case scala.meta.Importer(ref, importees) => throw TODO
+
+    case current: scala.meta.Importee => current match {
+      case Importee.Wildcard() => throw TODO
+      case Importee.Given(tpe: Type) => throw TODO
+      case Importee.GivenAll() => throw TODO
+      case Importee.Name(name: Name) => throw TODO
+      case otherwise => throw new NotSupportedMetaTree(otherwise)
+    }
+
+    case current: Pat => current match {
+      case Pat.Var(name: Term.Name) => throw TODO
+      case otherwise => throw new NotSupportedMetaTree(otherwise)
+    }
+
+    case otherwise => throw new NotSupportedMetaTree(otherwise)
   }
 
   // do a pattern matching on (ctree: CustomTree)
@@ -219,8 +320,8 @@ object CustomTreeTranslator {
     case Final() => throw TODO
 
     /* ============ Defn ============ */
-    case DefVal(mods: List[Mod], pats: List[Pat], decltpe: Type) => throw TODO
-    case DefVar(mods: List[Mod], pats: List[Pat], decltpe: Type) => throw TODO
+    case DefVal(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs) => throw TODO
+    case DefVar(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs) => throw TODO
     case DefDef(mods: List[Mod], name: TermName,
                 tparams: List[TypeParam], params:List[List[TermParam]],
                 decltpe: Type) => throw TODO
