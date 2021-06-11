@@ -76,8 +76,8 @@ case class TermName(value: String) extends Term {
 case class TermThis(qual: Name) extends Term {
   def apply(qual: Name) = new TermThis(qual)
 }
-case class TermSuper(thisp: Name) extends Term {
-  def apply(thisp: Name) = new TermSuper(thisp)
+case class TermSuper(thisp: Name, superp: Name) extends Term {
+  def apply(thisp: Name, superp: Name) = new TermSuper(thisp, superp)
 }
 sealed trait TermRef extends Term with Ref
 case class TermParam(mods: List[Mod], name: Name, decltpe: Option[Type], default: Option[Term]) extends Term {
@@ -89,8 +89,8 @@ case class TermLambda(params: List[TermParam], body: Term) extends Term {
 case class TermSelect(qual: Term, name: TermName) extends Term {
   def apply(qual: Term, name: TermName) = new TermSelect(qual, name)
 }
-case class TermInterpolate(prefix: Name, parts: List[Lit], args: List[Term]) extends Term {
-  def apply(prefix: Name, parts: List[Lit], args: List[Term]) = new TermInterpolate(prefix, parts, args)
+case class TermInterpolate(prefix: TermName, parts: List[Lit], args: List[Term]) extends Term {
+  def apply(prefix: TermName, parts: List[Lit], args: List[Term]) = new TermInterpolate(prefix, parts, args)
 }
 case class TermApply(fun: Term, args: List[Term]) extends Term {
   def apply(fun: Term, args: List[Term]) = new TermApply(fun, args)
@@ -98,11 +98,11 @@ case class TermApply(fun: Term, args: List[Term]) extends Term {
 case class TermApplyUsing(fun: Term, args: List[Term]) extends Term {
   def apply(fun: Term, args: List[Term]) = new TermApplyUsing(fun, args)
 }
-case class TermApplyInfix(lhs: Term, op: Name, targs: List[Type], args: List[Term]) extends Term {
-  def apply(lhs: Term, op: Name, targs: List[Type], args: List[Term]) = new TermApplyInfix(lhs, op, targs, args)
+case class TermApplyInfix(lhs: Term, op: TermName, targs: List[Type], args: List[Term]) extends Term {
+  def apply(lhs: Term, op: TermName, targs: List[Type], args: List[Term]) = new TermApplyInfix(lhs, op, targs, args)
 }
-case class TermApplyUnary(op: Name, arg: Term) extends Term {
-  def apply(op: Name, arg: Term) = new TermApplyUnary(op, arg)
+case class TermApplyUnary(op: TermName, arg: Term) extends Term {
+  def apply(op: TermName, arg: Term) = new TermApplyUnary(op, arg)
 }
 case class TermAssign(lhs: Term, rhs: Term) extends Term {
   def apply(lhs: Term, rhs: Term) = new TermAssign(lhs, rhs)
@@ -194,14 +194,14 @@ case class Final() extends Mod {
 
 /* ============ Defn ============ */
 sealed trait Defn extends Stat
-case class DefVal(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs: Term) extends Defn {
-  def apply(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs: Term) = new DefVal(mods, pats, decltpe, rhs)
+case class DefVal(mods: List[Mod], pats: List[Pat], decltpe: Option[Type], rhs: Term) extends Defn {
+  def apply(mods: List[Mod], pats: List[Pat], decltpe: Option[Type], rhs: Term) = new DefVal(mods, pats, decltpe, rhs)
 }
-case class DefVar(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs: Term) extends Defn {
-  def apply(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs: Term) = new DefVar(mods, pats, decltpe, rhs)
+case class DefVar(mods: List[Mod], pats: List[Pat], decltpe: Option[Type], rhs: Option[Term]) extends Defn {
+  def apply(mods: List[Mod], pats: List[Pat], decltpe: Option[Type], rhs: Option[Term]) = new DefVar(mods, pats, decltpe, rhs)
 }
-case class DefDef(mods: List[Mod], name: TermName, tparams: List[TypeParam], params:List[List[TermParam]], decltpe: Type) extends Defn {
-  def apply(mods: List[Mod], name: TermName, tparams: List[TypeParam], params:List[List[TermParam]], decltpe: Type) = new DefDef(mods, name, tparams, params, decltpe)
+case class DefDef(mods: List[Mod], name: TermName, tparams: List[TypeParam], paramss:List[List[TermParam]], decltpe: Option[Type], body: Term) extends Defn {
+  def apply(mods: List[Mod], name: TermName, tparams: List[TypeParam], paramss:List[List[TermParam]], decltpe: Option[Type], body: Term) = new DefDef(mods, name, tparams, paramss, decltpe, body)
 }
 case class DefEnum(mods: List[Mod], name: TypeName, tparams: List[TypeParam], ctor: Primary, templ: Template) extends Defn {
   def apply(mods: List[Mod], name: TypeName, tparams: List[TypeParam], ctor: Primary, templ: Template) = new DefEnum(mods, name, tparams, ctor, templ)
@@ -313,39 +313,102 @@ object CustomTreeTranslator {
     }
 
     case current: scala.meta.Term => current match {
-      case Term.Name(name: Predef.String) => throw TODO
-      case Term.Param(mods, name, declpe, default) => throw TODO
-      case Term.Super(thisp) => throw TODO
-      case Term.Param(mods, name, decltpe, default) => throw TODO
-      case Term.Function(params, body) => throw TODO
-      case Term.Select(qual, name) => throw TODO
-      case Term.Interpolate(prefix, parts, args) => throw TODO
-      case Term.Apply(fun, args) => throw TODO
-      case Term.ApplyUsing(fun, args) => throw TODO
-      case Term.ApplyInfix(lhs, op, targs, args) => throw TODO
-      case Term.ApplyUnary(op, arg) => throw TODO
-      case Term.Assign(lhs, rhs) => throw TODO
-      case Term.Return(expr) => throw TODO
-      case Term.New(init) => throw TODO
-      case Term.Block(stats) => throw TODO
-      case Term.If(cond, thenp, elsep) => throw TODO
-      case Term.Try(expr, catchp, finallyp) => throw TODO
-      case Term.While(expr, body) => throw TODO
-      case Term.For(enums, body) => throw TODO
-      case Term.Throw(expr) => throw TODO
+      case Term.Name(name: Predef.String) =>
+        TermName(name)
+
+      case Term.Param(mods, name, declpe, default) =>
+        TermParam(mods.map(scalaMetaToCustomTree(_).asInstanceOf[Mod]),
+                  scalaMetaToCustomTree(name).asInstanceOf[Name],
+                  declpe.map(scalaMetaToCustomTree(_).asInstanceOf[Type]),
+                  default.map(scalaMetaToCustomTree(_).asInstanceOf[Term]))
+
+      case Term.Super(thisp, superp) =>
+        TermSuper(scalaMetaToCustomTree(thisp).asInstanceOf[Name],
+                  scalaMetaToCustomTree(superp).asInstanceOf[Name])
+
+      case Term.Param(mods, name, decltpe, default) =>
+        TermParam(mods.map(scalaMetaToCustomTree(_).asInstanceOf[Mod]),
+                  scalaMetaToCustomTree(name).asInstanceOf[Name],
+                  decltpe.map(scalaMetaToCustomTree(_).asInstanceOf[Type]),
+                  default.map(scalaMetaToCustomTree(_).asInstanceOf[Term]))
+
+      case Term.Function(params, body) =>
+        TermLambda(params.map(scalaMetaToCustomTree(_).asInstanceOf[TermParam]),
+                   scalaMetaToCustomTree(body).asInstanceOf[Term])
+
+      case Term.Select(qual, name) =>
+        TermSelect(scalaMetaToCustomTree(qual).asInstanceOf[Term],
+                   scalaMetaToCustomTree(name).asInstanceOf[TermName])
+
+      case Term.Interpolate(prefix, parts, args) =>
+        TermInterpolate(scalaMetaToCustomTree(prefix).asInstanceOf[TermName],
+                        parts.map(scalaMetaToCustomTree(_).asInstanceOf[Lit]),
+                        args.map(scalaMetaToCustomTree(_).asInstanceOf[Term]))
+
+      case Term.Apply(fun, args) =>
+        TermApply(scalaMetaToCustomTree(fun).asInstanceOf[Term],
+                  args.map(scalaMetaToCustomTree(_).asInstanceOf[Term]))
+
+      case Term.ApplyUsing(fun, args) =>
+        TermApplyUsing(scalaMetaToCustomTree(fun).asInstanceOf[Term],
+                       args.map(scalaMetaToCustomTree(_).asInstanceOf[Term]))
+
+      case Term.ApplyInfix(lhs, op, targs, args) =>
+        TermApplyInfix(scalaMetaToCustomTree(lhs).asInstanceOf[Term],
+                       scalaMetaToCustomTree(op).asInstanceOf[TermName],
+                       targs.map(scalaMetaToCustomTree(_).asInstanceOf[Type]),
+                       args.map(scalaMetaToCustomTree(_).asInstanceOf[Term]))
+
+      case Term.ApplyUnary(op, arg) =>
+        TermApplyUnary(scalaMetaToCustomTree(op).asInstanceOf[TermName],
+                       scalaMetaToCustomTree(arg).asInstanceOf[Term])
+
+      case Term.Assign(lhs, rhs) =>
+        TermAssign(scalaMetaToCustomTree(lhs).asInstanceOf[Term],
+                   scalaMetaToCustomTree(rhs).asInstanceOf[Term])
+
+      case Term.Return(expr) =>
+        TermReturn(scalaMetaToCustomTree(expr).asInstanceOf[Term])
+
+      case Term.New(init) =>
+        TermNew(scalaMetaToCustomTree(init).asInstanceOf[Init])
+
+      case Term.Block(stats) =>
+        TermBlock(stats.map(scalaMetaToCustomTree(_).asInstanceOf[Stat]))
+
+      case Term.If(cond, thenp, elsep) =>
+        TermIf(scalaMetaToCustomTree(cond).asInstanceOf[Term],
+               scalaMetaToCustomTree(thenp).asInstanceOf[Term],
+               scalaMetaToCustomTree(elsep).asInstanceOf[Term])
+
+      case Term.Try(expr, catchp, finallyp) =>
+        TermTry(scalaMetaToCustomTree(expr).asInstanceOf[Term],
+                catchp.map(scalaMetaToCustomTree(_).asInstanceOf[Case]),
+                finallyp.map(scalaMetaToCustomTree(_).asInstanceOf[Term]))
+
+      case Term.While(expr, body) =>
+        TermWhile(scalaMetaToCustomTree(expr).asInstanceOf[Term],
+                  scalaMetaToCustomTree(body).asInstanceOf[Term])
+
+      case Term.For(enums, body) =>
+        TermFor(enums.map(scalaMetaToCustomTree(_).asInstanceOf[Enumerator]),
+                scalaMetaToCustomTree(body).asInstanceOf[Term])
+
+      case Term.Throw(expr) =>
+        TermThrow(scalaMetaToCustomTree(expr).asInstanceOf[Term])
 
       case current: scala.meta.Lit => current match {
-        case Lit.Int(_) => throw TODO
-        case Lit.Double(_) => throw TODO
-        case Lit.Float(_) => throw TODO
-        case Lit.Byte(_) => throw TODO
-        case Lit.Short(_) => throw TODO
-        case Lit.Char(_) => throw TODO
-        case Lit.Long(_) => throw TODO
-        case Lit.Boolean(_) => throw TODO
-        case Lit.Unit() => throw TODO
-        case Lit.String(_) => throw TODO
-        case Lit.Symbol(_) => throw TODO
+        case Lit.Int(value) => LitInt(value)
+        case Lit.Double(format) => LitDouble(format.toDouble)
+        case Lit.Float(format) => LitFloat(format.toFloat)
+        case Lit.Byte(value) => LitByte(value)
+        case Lit.Short(value) => LitShort(value)
+        case Lit.Char(value) => LitChar(value)
+        case Lit.Long(value) => LitLong(value)
+        case Lit.Boolean(value) => LitBoolean(value)
+        case Lit.Unit() => LitUnit()
+        case Lit.String(value) => LitString(value)
+        case Lit.Symbol(value) => LitSymbol(value)
         case otherwise => throw new NotSupportedMetaTree(otherwise)
       }
 
@@ -353,42 +416,74 @@ object CustomTreeTranslator {
     }
 
     case current: scala.meta.Mod => current match {
-      case Mod.Private(within) => throw TODO
-      case Mod.Protected(within) => throw TODO
-      case Mod.Implicit() => throw TODO
-      case Mod.Abstract() => throw TODO
-      case Mod.Override() => throw TODO
-      case Mod.Super() => throw TODO
-      case Mod.Final() => throw TODO
+      case Mod.Private(within) => Private(scalaMetaToCustomTree(within).asInstanceOf[Ref])
+      case Mod.Protected(within) => Protected(scalaMetaToCustomTree(within).asInstanceOf[Ref])
+      case Mod.Implicit() => Implicit()
+      case Mod.Abstract() => Abstract()
+      case Mod.Override() => Override()
+      case Mod.Super() => Super()
+      case Mod.Final() => Final()
       case otherwise => throw new NotSupportedMetaTree(otherwise)
     }
 
     case current: scala.meta.Defn => current match {
-      case Defn.Val(mods, pats, decltpe, rhs) => throw TODO
-      case Defn.Var(mods, pats, decltpe, rhs) => throw TODO
-      case Defn.Def(mods, name, tparams, paramss, decltpe, body) => throw TODO
-      case Defn.Enum(mods, name, taprams, ctor, templ) => throw TODO
+      case Defn.Val(mods, pats, decltpe, rhs) =>
+        DefVal(mods.map(scalaMetaToCustomTree(_).asInstanceOf[Mod]),
+               pats.map(scalaMetaToCustomTree(_).asInstanceOf[Pat]),
+               decltpe.map(scalaMetaToCustomTree(_).asInstanceOf[Type]),
+               scalaMetaToCustomTree(rhs).asInstanceOf[Term])
+
+      case Defn.Var(mods, pats, decltpe, rhs) =>
+        DefVar(mods.map(scalaMetaToCustomTree(_).asInstanceOf[Mod]),
+               pats.map(scalaMetaToCustomTree(_).asInstanceOf[Pat]),
+               decltpe.map(scalaMetaToCustomTree(_).asInstanceOf[Type]),
+               rhs.map(scalaMetaToCustomTree(_).asInstanceOf[Term]))
+
+      case Defn.Def(mods, name, tparams, paramss, decltpe, body) =>
+        DefDef(mods.map(scalaMetaToCustomTree(_).asInstanceOf[Mod]),
+               scalaMetaToCustomTree(name).asInstanceOf[TermName],
+               tparams.map(scalaMetaToCustomTree(_).asInstanceOf[TypeParam]),
+               paramss.map(_.map(scalaMetaToCustomTree(_).asInstanceOf[TermParam])),
+               decltpe.map(scalaMetaToCustomTree(_).asInstanceOf[Type]),
+               scalaMetaToCustomTree(body).asInstanceOf[Term])
+
+      case Defn.Enum(mods, name, tparams, ctor, templ) =>
+        DefEnum(mods.map(scalaMetaToCustomTree(_).asInstanceOf[Mod]),
+                scalaMetaToCustomTree(name).asInstanceOf[TypeName],
+                tparams.map(scalaMetaToCustomTree(_).asInstanceOf[TypeParam]),
+                scalaMetaToCustomTree(ctor).asInstanceOf[Primary],
+                scalaMetaToCustomTree(templ).asInstanceOf[Template])
+
       case otherwise => throw new NotSupportedMetaTree(otherwise)
     }
 
-    case scala.meta.Template(early, inits, self, stats) => throw TODO
+    case scala.meta.Template(early, inits, self, stats) =>
+      Template(early.map(scalaMetaToCustomTree(_).asInstanceOf[Stat]),
+               inits.map(scalaMetaToCustomTree(_).asInstanceOf[Init]),
+               scalaMetaToCustomTree(self).asInstanceOf[Self],
+               stats.map(scalaMetaToCustomTree(_).asInstanceOf[Stat]))
 
-    case scala.meta.Source(stats) => throw TODO
+    case scala.meta.Source(stats) =>
+      Source(stats.map(scalaMetaToCustomTree(_).asInstanceOf[Stat]))
 
-    case scala.meta.Pkg(ref, stats) => throw TODO
+    case scala.meta.Pkg(ref, stats) =>
+      Pkg(scalaMetaToCustomTree(ref).asInstanceOf[TermRef],
+          stats.map(scalaMetaToCustomTree(_).asInstanceOf[Stat]))
 
-    case scala.meta.Importer(ref, importees) => throw TODO
+    case scala.meta.Importer(ref, importees) =>
+      Importer(scalaMetaToCustomTree(ref).asInstanceOf[TermRef],
+               importees.map(scalaMetaToCustomTree(_).asInstanceOf[Importee]))
 
     case current: scala.meta.Importee => current match {
-      case Importee.Wildcard() => throw TODO
-      case Importee.Given(tpe: Type) => throw TODO
-      case Importee.GivenAll() => throw TODO
-      case Importee.Name(name: Name) => throw TODO
+      case Importee.Wildcard() => ImporteeWildcard()
+      case Importee.Given(tpe: Type) => ImporteeGiven(scalaMetaToCustomTree(tpe).asInstanceOf[Type])
+      case Importee.GivenAll() => ImporteeGivenAll()
+      case Importee.Name(name: Name) => ImporteeName(scalaMetaToCustomTree(name).asInstanceOf[Name])
       case otherwise => throw new NotSupportedMetaTree(otherwise)
     }
 
     case current: Pat => current match {
-      case Pat.Var(name: Term.Name) => throw TODO
+      case Pat.Var(name: Term.Name) => PatVar(scalaMetaToCustomTree(name).asInstanceOf[TermName])
       case otherwise => throw new NotSupportedMetaTree(otherwise)
     }
 
@@ -447,7 +542,7 @@ object CustomTreeTranslator {
       case current: Term => current match {
         case TermName(value: String) => throw TODO
         case TermThis(qual: Name) => throw TODO
-        case TermSuper(thisp: Name) => throw TODO
+        case TermSuper(thisp: Name, superp: Name) => throw TODO
         case TermParam(mods: List[Mod], name: Name,
                        decltpe: Option[Type], default: Option[Term]) => throw TODO
         case TermLambda(params: List[TermParam], body: Term) => throw TODO
@@ -495,10 +590,11 @@ object CustomTreeTranslator {
         case DefVar(mods: List[Mod], pats: List[Pat], decltpe: Type, rhs) => throw TODO
         case DefDef(mods: List[Mod], name: TermName,
                     tparams: List[TypeParam], params:List[List[TermParam]],
-                    decltpe: Type) => throw TODO
+                    decltpe: Type, body: Term) => throw TODO
         case DefEnum(mods: List[Mod], name: TypeName,
                      tparams: List[TypeParam], ctor: Primary,
                      templ: Template) => throw TODO
+        case _ => throw new ThisMatchIsExhaustive()
       }
 
       case Import(importers: List[Importer]) => throw TODO
@@ -538,4 +634,5 @@ object CustomTreeTranslator {
 
     case _ => throw new ThisMatchIsExhaustive()
   }
+
 }
