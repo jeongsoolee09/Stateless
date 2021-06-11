@@ -547,13 +547,13 @@ object CustomTreeTranslator {
                        decltpe: Option[Type], default: Option[Term]) => throw TODO
         case TermLambda(params: List[TermParam], body: Term) => throw TODO
         case TermSelect(qual: Term, name: TermName) => throw TODO
-        case TermInterpolate(prefix: Name, parts: List[Lit],
+        case TermInterpolate(prefix: TermName, parts: List[Lit],
                              args: List[Term]) => throw TODO
         case TermApply(fun: Term, args: List[Term]) => throw TODO
         case TermApplyUsing(fun: Term, args: List[Term]) => throw TODO
-        case TermApplyInfix(lhs: Term, op: Name,
+        case TermApplyInfix(lhs: Term, op: TermName,
                             targs: List[Type], args: List[Term]) => throw TODO
-        case TermApplyUnary(op: Name, arg: Term) => throw TODO
+        case TermApplyUnary(op: TermName, arg: Term) => throw TODO
         case TermAssign(lhs: Term, rhs: Term) => throw TODO
         case TermReturn(expr: Term) => throw TODO
         case TermNew(init: Init) => throw TODO
