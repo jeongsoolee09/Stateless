@@ -7,6 +7,7 @@ package kr.ac.korea.prl.stateless.CustomTree
   */
 
 import scala.meta._
+import org.scalameta.tests.typecheckError
 
 sealed trait CustomTree
 
@@ -14,13 +15,8 @@ sealed trait CustomTree
 sealed trait Ref extends CustomTree
 
 /* ============ Name ============ */
-case class Name(value: String) extends Ref {
-  def apply(value: String) = new Name(value)
-}
-case class Init(tpe: Type, name: Name, argss: List[List[Term]]) extends Ref {
-  def apply(tpe: Type, name: Name, argss: List[List[Term]]) = new Init(tpe, name, argss)
-}
-
+case class Name(value: String) extends Ref
+case class Init(tpe: Type, name: Name, argss: List[List[Term]]) extends Ref
 /* ============ Member ============ */
 sealed trait Member extends CustomTree
 
@@ -29,13 +25,22 @@ case class Self(name: Name, decltpe: Option[Type]) extends Member {
   def apply(name: Name, decltpe: Option[Type]) = new Self(name, decltpe)
 }
 
+/* ============ Pat ============ */
+sealed trait Pat extends CustomTree
+case class PatVar(name: TermName) extends Pat {
+  def apply(name: TermName) = new PatVar(name)
+}
+
 /* ============ Type ============ */
 sealed trait Type extends CustomTree
 case class TypeBounds(lo: Option[Type], hi: Option[Type]) extends Type {
   def apply(lo: Option[Type], hi: Option[Type]) = new TypeBounds(lo, hi)
 }
-case class TypeParam(mods: List[Mod], name: Name, tparams: List[TypeParam], tbounds: TypeBounds, vbounds: List[Type], cbounds: List[Type]) extends Type {
-  def apply(mods: List[Mod], name: Name, tparams: List[TypeParam], tbounds: TypeBounds, vbounds: List[Type], cbounds: List[Type]) = new TypeParam(mods, name, tparams, tbounds, vbounds, cbounds)
+case class TypeParam(mods: List[Mod], name: Name, tparams: List[TypeParam],
+                     tbounds: TypeBounds, vbounds: List[Type], cbounds: List[Type]) extends Type {
+  def apply(mods: List[Mod], name: Name, tparams: List[TypeParam],
+            tbounds: TypeBounds, vbounds: List[Type], cbounds: List[Type]) =
+    new TypeParam(mods, name, tparams, tbounds, vbounds, cbounds)
 }
 case class TypeName(value: String) extends Type {
   def apply(value: String) = new TypeName(value)
@@ -248,11 +253,6 @@ case class Import(importers: List[Importer]) extends Stat {
   def apply(importers: List[Importer]) = new Import(importers)
 }
 
-/* ============ Pat ============ */
-sealed trait Pat extends CustomTree
-case class PatVar(name: TermName) extends Pat {
-  def apply(name: TermName) = new PatVar(name)
-}
 
 object TODO extends Exception
 
@@ -266,26 +266,49 @@ object CustomTreeTranslator {
   def scalaMetaToCustomTree(smtree: scala.meta.Tree): CustomTree = smtree match {
 
     case scala.meta.Name(value) => Name(value)
-    case scala.meta.Init(tpe, name, argss) => {
+    case scala.meta.Init(tpe, name, argss) =>
       Init(scalaMetaToCustomTree(tpe).asInstanceOf[Type],
            scalaMetaToCustomTree(name).asInstanceOf[Name],
            argss.map(_.map(scalaMetaToCustomTree(_).asInstanceOf[Term])))
-    }
-    case scala.meta.Self(name, decltpe) =>  throw TODO
+
+    case scala.meta.Self(name, decltpe) =>
+      Self(scalaMetaToCustomTree(name).asInstanceOf[Name],
+           decltpe.map(scalaMetaToCustomTree(_).asInstanceOf[Type]))
 
     case current: scala.meta.Type => current match {
-      case Type.Bounds(lo, hi) => throw TODO
+      case Type.Bounds(lo, hi) =>
+        TypeBounds(lo.map(scalaMetaToCustomTree(_).asInstanceOf[Type]),
+                   hi.map(scalaMetaToCustomTree(_).asInstanceOf[Type]))
+
       case Type.Param(mods, name, tparams,
-                      tbounds, vbounds, cbounds) => throw TODO
-      case Type.Name(value) => throw TODO
+                      tbounds, vbounds, cbounds) =>
+        TypeParam(mods.map(scalaMetaToCustomTree(_).asInstanceOf[Mod]),
+                  scalaMetaToCustomTree(name).asInstanceOf[Name],
+                  tparams.map(scalaMetaToCustomTree(_).asInstanceOf[TypeParam]),
+                  scalaMetaToCustomTree(tbounds).asInstanceOf[TypeBounds],
+                  vbounds.map(scalaMetaToCustomTree(_).asInstanceOf[Type]),
+                  cbounds.map(scalaMetaToCustomTree(_).asInstanceOf[Type]))
+
+      case Type.Name(value) => TypeName(value)
       case otherwise => throw new NotSupportedMetaTree(otherwise)
     }
 
     case current: scala.meta.Enumerator => current match {
-      case Enumerator.Generator(pat, rhs) => throw TODO
-      case Enumerator.CaseGenerator(pat, rhs) => throw TODO
-      case Enumerator.Val(pat, rhs) => throw TODO
-      case Enumerator.Guard(cond) => throw TODO
+      case Enumerator.Generator(pat, rhs) =>
+        Generator(scalaMetaToCustomTree(pat).asInstanceOf[Pat],
+                  scalaMetaToCustomTree(rhs).asInstanceOf[Term])
+
+      case Enumerator.CaseGenerator(pat, rhs) =>
+        CaseGenerator(scalaMetaToCustomTree(pat).asInstanceOf[Pat],
+                      scalaMetaToCustomTree(rhs).asInstanceOf[Term])
+
+      case Enumerator.Val(pat, rhs) =>
+        Val(scalaMetaToCustomTree(pat).asInstanceOf[Pat],
+            scalaMetaToCustomTree(rhs).asInstanceOf[Term])
+
+      case Enumerator.Guard(cond) =>
+        Guard(scalaMetaToCustomTree(cond).asInstanceOf[Term])
+
       case otherwise => throw new NotSupportedMetaTree(otherwise)
     }
 
@@ -377,7 +400,6 @@ object CustomTreeTranslator {
 
     /* ============ Import ============ */
     case Importer(ref: TermRef, importees: List[Importee]) => throw TODO
-
 
 
     case Name(value: String) => throw TODO
