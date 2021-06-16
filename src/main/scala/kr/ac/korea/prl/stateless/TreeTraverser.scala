@@ -13,6 +13,7 @@ import org.jgrapht.traverse.BreadthFirstIterator
 import org.jgrapht.graph.DefaultEdge
 
 import kr.ac.korea.prl.stateless.TreeGraph._
+import kr.ac.korea.prl.stateless.CustomTree._
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 object TODO extends Exception
@@ -47,6 +48,10 @@ object TreeTraverser {
     case _                                  => false
   }
 
+  def isDefun(tree: CustomTree): Boolean = tree match {
+    case DefDef(_, _, _, paramList, _, _) => !paramList.isEmpty
+    case _                                => false
+  }
 
   /**
     * Is this statement interesting?
@@ -436,11 +441,11 @@ object TreeTraverser {
   }
 
 
-  def findMyClass(elem: Tree,
-                  treeGraph: DirectedAcyclicGraph[Tree, DefaultEdge]):
+  def findMyClass(elem: CustomTree,
+                  treeGraph: DirectedAcyclicGraph[CustomTree, DefaultEdge]):
   Type.Name = {
     // find elem's predecessor in treeGraph whose class is Defn.Class or Defn.Object
-    def isClassDef(tree: Tree): Boolean = tree match {
+    def isClassDef(tree: CustomTree): Boolean = tree match {
       case Defn.Class(_)  => true
       case Defn.Object(_) => true
       case _              => false
@@ -448,7 +453,7 @@ object TreeTraverser {
 
     val classes = treeGraph.getAncestors(elem).asScala.toList.filter(isClassDef)
     // now, get the most specific class
-    val bfsIterator = new BreadthFirstIterator[Tree, DefaultEdge](treeGraph)
+    val bfsIterator = new BreadthFirstIterator[CustomTree, DefaultEdge](treeGraph)
     val classesAndDepth = classes.map(klass => (klass, bfsIterator.getDepth(klass)))
 
     // get the maximum class in terms of depth
@@ -464,7 +469,8 @@ object TreeTraverser {
     */
   def callerCollector(tree: Tree, callee: (Type.Name, Term.Name)):
       List[(Type.Name, Term.Name)] = {
-    val treeGraph = TreeGraph.graphFromMetaTree(tree)
+    val customTree = CustomTreeTranslator.scalaMetaToCustomTree(tree)
+    val treeGraph = TreeGraph.graphFromCustomTree(customTree)
     val iterator = new BreadthFirstIterator(treeGraph)
     val list = ListBuffer[(Type.Name, Term.Name)]()
 
@@ -472,7 +478,7 @@ object TreeTraverser {
       val elem = iterator.next()
       if (isDefun(elem)) {
         // spawn another BFS
-        val innerIterator = new BreadthFirstIterator(TreeGraph.graphFromMetaTree(elem))
+        val innerIterator = new BreadthFirstIterator(TreeGraph.graphFromCustomTree(elem))
         // look for calls
         while (innerIterator.hasNext) {
           val smoltree = innerIterator.next()
@@ -481,10 +487,10 @@ object TreeTraverser {
               .fun
               .asInstanceOf[Term.Name]
               .isEqual(tree.asInstanceOf[Term.Name])
-            val methodClassMatches = findMyClass(smoltree, TreeGraph.graphFromMetaTree(tree)).
+            val methodClassMatches = findMyClass(smoltree, TreeGraph.graphFromCustomTree(customTree)).
               isEqual(tree.asInstanceOf[Type.Name])
             if (methodIdentifierMatches && methodClassMatches)
-              list.+=((findMyClass(smoltree, TreeGraph.graphFromMetaTree(tree)),
+              list.+=((findMyClass(smoltree, TreeGraph.graphFromCustomTree(customTree)),
                        smoltree.asInstanceOf[Term.Name]))
           }
         }
