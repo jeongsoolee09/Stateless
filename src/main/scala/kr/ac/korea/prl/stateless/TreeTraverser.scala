@@ -16,26 +16,15 @@ import kr.ac.korea.prl.stateless.TreeGraph._
 import kr.ac.korea.prl.stateless.CustomTree._
 import org.jgrapht.graph.DirectedAcyclicGraph
 
-object TODO extends Exception
 object ThisIsImpossible extends Exception
 
 object TreeTraverser {
 
-  def truncatedPrint(tree: Tree): String = {
+  def truncatedPrint(tree: CustomTree): String = {
     val string = tree.toString()
     string.slice(0, 15)+"..."
   }
 
-  /**
-    * Vanilla tree traverser provided by ScalaMeta.
-    *
-    * @param tree
-    * @return
-    */
-  def traverse(tree: Tree): Unit = tree.traverse {
-    case node =>
-      println(s"${node.productPrefix}")
-  }
 
   /**
     * Is this tree a Function Definition?
@@ -53,53 +42,62 @@ object TreeTraverser {
     case _                                => false
   }
 
-  /**
-    * Is this statement interesting?
-    *
-    * @param elem
-    * @return true if the given statement is interesting, false otherwise
-    */
-  def isInteresting(elem: Stat) = elem match {
-    /* ============ Decl ============ */
-    case Decl.Var(_) => true
-    /* ============ Defn ============ */
-    case Defn.Var(_) => true
-    case Defn.Def(_) => true
-    case Defn.Class(_) => true
-    case Defn.Trait(_) => true
-    case Defn.Object(_) => true
-    /* ============ Term ============ */
-    case Term.Block(_) => true
-    case Term.If(_) => true
-    case Term.Try(_) => true
-    case Term.While(_) => true
-    case Term.For(_) => true
-    /* ============ Source ============ */
-    case Source(_) => true
-    case Pkg(_) => true
-    case otherwise => false
+  def isClassDef(tree: CustomTree): Boolean = tree match {
+    case _: DefClass  => true
+    case _: DefObject => true
+    case _            => false
   }
 
 
-  def functionBodyIsComposite(statPossiblyBlock: Term): Boolean =
-    statPossiblyBlock match {
-      case Term.Block(_) => true
-      case Term.If(_)    => true
-      case Term.Try(_)   => true
-      case Term.While(_) => true
-      case Term.For(_)   => true
-      case _             => false
-    }
-
+  def scopeGreaterThanClass(tree: CustomTree): Boolean = tree match {
+    case _: DefClass      => true
+    case _: CustomSource  => true
+    case _: CustomPkg     => true
+    case _                => false
+  }
 
   /**
     * Collect all the vars in the given tree.
+    * NOTE: This function is deprecated as scala.meta.Tree is no longer used directly.
     *
     * @param tree
     * @return List of triples: ClassID * MethodID * VarID * TypeOption * TermOption
     */
-  def varCollector(tree: Tree): List[(Type.Name, Term.Name, Term.Name,
-                                      Option[Type], Option[Term])] = {
+  def varCollector(tree: Tree):
+      List[(Type.Name, Term.Name, Term.Name,
+            Option[Type], Option[Term])] = {
+
+    def isInteresting(elem: Stat) = elem match {
+      /* ============ Decl ============ */
+      case _: Decl.Var => true
+      /* ============ Defn ============ */
+      case _: Defn.Var => true
+      case _: Defn.Def => true
+      case _: Defn.Class => true
+      case _: Defn.Trait => true
+      case _: Defn.Object => true
+      /* ============ Term ============ */
+      case _: Term.Block => true
+      case _: Term.If => true
+      case _: Term.Try => true
+      case _: Term.While => true
+      case _: Term.For => true
+      /* ============ Source ============ */
+      case _: Source => true
+      case _: Pkg => true
+
+      case otherwise => false
+    }
+
+    def functionBodyIsComposite(statPossiblyBlock: Term): Boolean =
+      statPossiblyBlock match {
+        case _: Term.Block => true
+        case _: Term.If    => true
+        case _: Term.Try   => true
+        case _: Term.While => true
+        case _: Term.For   => true
+        case _            => false
+      }
 
     def inner(tree: Tree, currentClass: Type.Name, currentMethod: Term.Name,
               acc: List[(Type.Name, Term.Name, Term.Name, Option[Type], Option[Term])]):
@@ -199,43 +197,109 @@ object TreeTraverser {
   }
 
 
-  def scopeGreaterThanClass(tree: Tree): Boolean = tree match {
-    case Defn.Class(_) => true
-    case Source(_)     => true
-    case Pkg(_)        => true
-    case _             => false
+  /**
+    * Collects all the vars defined in the given piece of program.
+    *
+    * @param tree must be of CustomTree type
+    * @return The list of the 5-tuple:
+    *   1. The var's class name
+    *   2. The var's method name ("ph" if none)
+    *   3. The var's name
+    *   4. The var's type name (Option)
+    *   5. The var's definition value (Option)
+    */
+  def varCollector(tree: CustomTree): List[(TypeName, TermName,
+                                            TermName,
+                                            Option[CustomType],
+                                            Option[CustomTerm])] = {
+    def isInteresting(elem: CustomTree): Boolean =
+      elem match {
+        /* ============ Decl ============ */
+        case _: DeclVar      => true
+        /* ============ Defn ============ */
+        case _: DefVar       => true
+        case _: DefDef       => true
+        case _: DefClass     => true
+        case _: DefTrait     => true
+        case _: DefObject    => true
+        /* ============ Term ============ */
+        case _: TermBlock    => true
+        case _: TermIf       => true
+        case _: TermTry      => true
+        case _: TermWhile    => true
+        case _: TermFor      => true
+        /* ============ Source ============ */
+        case _: CustomSource => true
+        case _: CustomPkg    => true
+
+        case otherwise       => false
+      }
+
+    def functionBodyIsComposite(statPossiblyBlock: CustomTerm): Boolean =
+      statPossiblyBlock match {
+        case _: TermBlock => true
+        case _: TermIf    => true
+        case _: TermTry   => true
+        case _: TermWhile => true
+        case _: TermFor   => true
+        case _            => false
+      }
+
+    val treeGraph = TreeGraph.graphFromCustomTree(tree)
+    val iterator = new BreadthFirstIterator(treeGraph)
+    val list = ListBuffer[(TypeName, TermName,
+                           TermName, Option[CustomType],
+                           Option[CustomTerm])]()
+
+    while (iterator.hasNext) {
+      val elem = iterator.next()
+      if (isInteresting(elem)) {
+        // spawn another BFS
+        val innerIterator = new BreadthFirstIterator(TreeGraph.graphFromCustomTree(elem))
+        while (iterator.hasNext) {
+          val smoltree = innerIterator.next()
+          if (smoltree.isInstanceOf[DefVar]) {
+            val defVar = smoltree.asInstanceOf[DefVar]
+            val myClass = findMyClass(smoltree, treeGraph)
+            val myMeth = findMyMethod(smoltree, treeGraph)
+            val myName = defVar.pats.head.asInstanceOf[TermName]
+            val myTypeName = defVar.decltpe
+            val myDefVal = defVar.rhs
+            list.+=((myClass, myMeth, myName, myTypeName, myDefVal))
+          }
+        }
+      }
+    }
+    list.toList
   }
 
 
-  def innerClassChainCollector(tree: Tree): List[(Type.Name, Type.Name)] = {
-    def inner(tree: Tree, currentClass: Type.Name,
-              acc: List[(Type.Name, Type.Name)]):
-        List[(Type.Name, Type.Name)] = tree match {
+  def innerClassChainCollector(tree: CustomTree): List[(TypeName, TypeName)] = {
+
+    def inner(tree: CustomTree, currentClass: TypeName,
+              acc: List[(TypeName, TypeName)]):
+        List[(TypeName, TypeName)] = tree match {
+
       /* ============ Class ============ */
-      case Defn.Class(_, newClassName, _, _, Template(_, _, _, body)) =>
-        (currentClass, newClassName)::body.foldLeft(List[(Type.Name, Type.Name)]())((a, elem) =>
-          inner(elem, newClassName, List())++a) ++ acc
+      case DefClass(_, newClassName, _, _, Template(_, _, _, body)) =>
+        (currentClass, newClassName)::body.foldLeft(List[(TypeName, TypeName)]())((a, elem) =>
+          inner(elem.asInstanceOf[CustomTree], newClassName, List())++a) ++ acc
 
       /* ============ Source ============ */
-      case Source(stats) =>
-        stats.filter(scopeGreaterThanClass).foldLeft(List[(Type.Name, Type.Name)]())((a, elem) =>
-          inner(elem, currentClass, List())++a) ++ acc
+      case CustomSource(stats) =>
+        stats.filter(scopeGreaterThanClass).foldLeft(List[(TypeName, TypeName)]())((a, elem) =>
+          inner(elem.asInstanceOf[CustomTree], currentClass, List())++a) ++ acc
 
       /* ============ Pkg ============ */
-      case Pkg(_, stats) =>
-        stats.filter(scopeGreaterThanClass).foldLeft(List[(Type.Name, Type.Name)]())((a, elem) =>
-          inner(elem, currentClass, List())++a) ++ acc
+      case CustomPkg(_, stats) =>
+        stats.filter(scopeGreaterThanClass).foldLeft(List[(TypeName, TypeName)]())((a, elem) =>
+          inner(elem.asInstanceOf[CustomTree], currentClass, List())++a) ++ acc
 
       case _ => acc
     }
 
-    inner(tree, Type.Name("ph"), List())
+    inner(tree, TypeName("ph"), List())
   }
-
-
-  def treeIsInTreeList(tree: Tree, treeList: List[Tree]): Boolean =
-    treeList.foldLeft[Boolean](false)((acc, treeElem) =>
-      tree.isEqual(treeElem) || acc)
 
 
   /**
@@ -252,6 +316,10 @@ object TreeTraverser {
       List[(Type.Name, Term.Name)] = {
     val globalScopeVarNamesOnly: List[Term.Name] = vars.filter(varTup =>
       varTup._2.isEqual(Term.Name("ph"))).map(_._3)
+
+    def treeIsInTreeList(tree: Tree, treeList: List[Tree]): Boolean =
+      treeList.foldLeft[Boolean](false)((acc, treeElem) =>
+        tree.isEqual(treeElem) || acc)
 
     def inner(tree: Tree,
               currentClass: Type.Name,
@@ -443,21 +511,39 @@ object TreeTraverser {
 
   def findMyClass(elem: CustomTree,
                   treeGraph: DirectedAcyclicGraph[CustomTree, DefaultEdge]):
-  Type.Name = {
-    // find elem's predecessor in treeGraph whose class is Defn.Class or Defn.Object
-    def isClassDef(tree: CustomTree): Boolean = tree match {
-      case Defn.Class(_)  => true
-      case Defn.Object(_) => true
-      case _              => false
-    }
+      TypeName = {
+    // find elem's predecessor in treeGraph whose class is defClass or defObject
+    val classes = treeGraph.getAncestors(elem)
+      .asScala
+      .toList
+      .filter(isClassDef)
 
-    val classes = treeGraph.getAncestors(elem).asScala.toList.filter(isClassDef)
-    // now, get the most specific class
+    // now, get the most specific defClass: because defClass can be nested
     val bfsIterator = new BreadthFirstIterator[CustomTree, DefaultEdge](treeGraph)
-    val classesAndDepth = classes.map(klass => (klass, bfsIterator.getDepth(klass)))
+
+    val classesAndDepth = classes.map(klass =>
+      (klass, bfsIterator.getDepth(klass))
+    )
 
     // get the maximum class in terms of depth
-    findKeyWithMaxVal(classesAndDepth).asInstanceOf[Type.Name]
+    findKeyWithMaxVal(classesAndDepth).asInstanceOf[TypeName]
+  }
+
+
+  def findMyMethod(elem: CustomTree,
+                   treeGraph: DirectedAcyclicGraph[CustomTree, DefaultEdge]):
+      TermName = {
+
+    // find elem's predecessor in treeGraph which is a defun
+    val methods = treeGraph.getAncestors(elem)
+      .asScala
+      .toList
+      .filter(isDefun)
+
+    // now, get the most specific defun: because defuns can be nested
+
+
+    ???
   }
 
 
@@ -467,12 +553,11 @@ object TreeTraverser {
     * @param tree the tree in which to look for callers.
     * @param callee the callee in question.
     */
-  def callerCollector(tree: Tree, callee: (Type.Name, Term.Name)):
-      List[(Type.Name, Term.Name)] = {
-    val customTree = CustomTreeTranslator.scalaMetaToCustomTree(tree)
+  def callerCollector(customTree: CustomTree, callee: (TypeName, TermName)):
+      List[(TypeName, TermName)] = {
     val treeGraph = TreeGraph.graphFromCustomTree(customTree)
     val iterator = new BreadthFirstIterator(treeGraph)
-    val list = ListBuffer[(Type.Name, Term.Name)]()
+    val list = ListBuffer[(TypeName, TermName)]()
 
     while (iterator.hasNext) {
       val elem = iterator.next()
@@ -482,16 +567,16 @@ object TreeTraverser {
         // look for calls
         while (innerIterator.hasNext) {
           val smoltree = innerIterator.next()
-          if (smoltree.isInstanceOf[Term.Apply]) {
-            val methodIdentifierMatches = smoltree.asInstanceOf[Term.Apply]
+          if (smoltree.isInstanceOf[TermApply]) {
+            val methodIdentifierMatches = smoltree.asInstanceOf[TermApply]
               .fun
-              .asInstanceOf[Term.Name]
-              .isEqual(tree.asInstanceOf[Term.Name])
+              .asInstanceOf[TermName]
+              .equals(customTree.asInstanceOf[TermName])
             val methodClassMatches = findMyClass(smoltree, TreeGraph.graphFromCustomTree(customTree)).
-              isEqual(tree.asInstanceOf[Type.Name])
+              equals(customTree.asInstanceOf[TypeName])
             if (methodIdentifierMatches && methodClassMatches)
               list.+=((findMyClass(smoltree, TreeGraph.graphFromCustomTree(customTree)),
-                       smoltree.asInstanceOf[Term.Name]))
+                       smoltree.asInstanceOf[TermName]))
           }
         }
       }
