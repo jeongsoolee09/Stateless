@@ -51,10 +51,6 @@ class ExampleSpec extends AnyFlatSpec with should.Matchers {
   }
 
 
-  val treeTraverser = new TreeTraverser.TreeTraverser()
-  val treeReader = new TreeReader.TreeReader()
-
-
   /* Unit Tests ======================================= */
   /* ================================================== */
 
@@ -69,7 +65,7 @@ class ExampleSpec extends AnyFlatSpec with should.Matchers {
   //         var y: Int = 2
   //         y = 100
   //         var z: Int = 3}"""
-  //   tupleListEquals(treeTraverser.varCollector(threeVars),
+  //   tupleListEquals(TreeTraverser.varCollector(threeVars),
   //                   List((Type.Name("ph"), Term.Name("f"), Term.Name("z"), Some(Type.Name("Int")), Some(Lit.Int(1))),
   //                        (Type.Name("ph"), Term.Name("f"), Term.Name("y"), Some(Type.Name("Int")), Some(Lit.Int(2))),
   //                        (Type.Name("ph"), Term.Name("f"), Term.Name("x"), Some(Type.Name("Int")), Some(Lit.Int(3))))) should be (true)
