@@ -352,12 +352,11 @@ sealed trait Decl extends CustomStat
 
 case class DeclVal(mods: List[CustomMod], pats: List[CustomPat], decltpe: CustomType) extends Decl
 case class DeclVar(mods: List[CustomMod], pats: List[CustomPat], decltpe: CustomType) extends Decl
-case class DeclDef(
-  mods: List[CustomMod],
-  name: TermName,
-  tparams: List[TypeParam],
-  paramss: List[List[TermParam]],
-  decltpe: CustomType) extends Decl
+case class DeclDef(mods: List[CustomMod],
+                   name: TermName,
+                   tparams: List[TypeParam],
+                   paramss: List[List[TermParam]],
+                   decltpe: CustomType) extends Decl
 
 
 /* ============ Defn ============ */
