@@ -256,7 +256,7 @@ object TreeTraverser {
       if (isInteresting(elem)) {
         // spawn another BFS
         val innerIterator = new BreadthFirstIterator(TreeGraph.graphFromCustomTree(elem))
-        while (iterator.hasNext) {
+        while (innerIterator.hasNext) {
           val smoltree = innerIterator.next()
           if (smoltree.isInstanceOf[DefVar]) {
             val defVar = smoltree.asInstanceOf[DefVar]
@@ -332,6 +332,7 @@ object TreeTraverser {
 
         case _: Import => acc
 
+        // here
         case Pat.Var(varName) =>
           if (treeIsInTreeList(varName, globalScopeVarNamesOnly))
             (currentClass, currentMethod)::acc
@@ -410,6 +411,7 @@ object TreeTraverser {
             (currentClass, currentMethod)::acc
           else acc
 
+        // here
         case Term.Return(expr) =>
           if (treeIsInTreeList(expr, globalScopeVarNamesOnly))
             (currentClass, currentMethod)::acc
@@ -491,6 +493,49 @@ object TreeTraverser {
 
 
   /**
+    * Collects the class names and identifiers of the methods that
+    * refers to the given vars.
+    *
+    * @param tree the tree to search
+    * @param vars the vars in question
+    * @return list of pairs comprised of class names and method names
+    */
+  def referringMethodCollector(tree: CustomTree,
+                               vars: List[(TypeName, TermName, TermName,
+                                           Option[CustomType], Option[CustomTerm])]):
+      List[(TypeName, TermName)] = {
+
+    val globalScopeVarNamesOnly: List[TermName] = vars.filter(varTup =>
+      varTup._2.equals(TermName("ph"))).map(_._3)
+
+    val treeGraph = TreeGraph.graphFromCustomTree(tree)
+    val iterator = new BreadthFirstIterator[CustomTree, DefaultEdge](treeGraph)
+    val list = ListBuffer[(TypeName, TermName)]()
+
+    while (iterator.hasNext()) {
+      val elem = iterator.next()
+      if (isDefun(elem)) {
+        // spawn another BFS
+        val innerIterator = new BreadthFirstIterator(TreeGraph.graphFromCustomTree(elem))
+        while (innerIterator.hasNext()) {
+          val smoltree = innerIterator.next()
+          if ((smoltree.isInstanceOf[PatVar] &&
+                 globalScopeVarNamesOnly.contains(smoltree
+                                                    .asInstanceOf[PatVar]
+                                                    .name))) {
+            val patVar = smoltree.asInstanceOf[PatVar]
+            val myClass = findMyClass(smoltree, treeGraph)
+            val myMeth = findMyMethod(smoltree, treeGraph)
+            list.+=((myClass, myMeth))
+          }
+        }
+      }
+    }
+    list.toList
+  }
+
+
+  /**
     * Find the key with maximum value in a list of tuples (alist).
     *
     * @param alist: Tuple list where the second element is an integer.
@@ -542,8 +587,15 @@ object TreeTraverser {
 
     // now, get the most specific defun: because defuns can be nested
 
+    val bfsIterator = new BreadthFirstIterator[CustomTree, DefaultEdge](treeGraph)
 
-    ???
+    val methodsAndDepth = methods.map(meth =>
+      (meth, bfsIterator.getDepth(meth))
+    )
+
+    // get the maximum meth in terms of depth
+
+    findKeyWithMaxVal(methodsAndDepth).asInstanceOf[TermName]
   }
 
 
