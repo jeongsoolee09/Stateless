@@ -581,7 +581,10 @@ object CustomTreeTranslator {
                   cbounds.map(scalaMetaToCustomTree(_).asInstanceOf[CustomType]))
 
       case Type.Name(value) => TypeName(value)
-      case otherwise => throw new NotSupportedMetaTree(otherwise)
+      case otherwise => {
+        println(s"This is not supported: ${otherwise.toString}")
+        throw new NotSupportedMetaTree(otherwise)
+      }
     }
 
     case current: scala.meta.Enumerator => current match {
@@ -600,7 +603,10 @@ object CustomTreeTranslator {
       case Enumerator.Guard(cond) =>
         Guard(scalaMetaToCustomTree(cond).asInstanceOf[CustomTerm])
 
-      case otherwise => throw new NotSupportedMetaTree(otherwise)
+      case otherwise => {
+        println(s"This is not supported: ${otherwise.toString}")
+        throw new NotSupportedMetaTree(otherwise)
+      }
     }
 
     case current: scala.meta.Term => current match {
@@ -700,10 +706,16 @@ object CustomTreeTranslator {
         case Lit.Unit() => LitUnit()
         case Lit.String(value) => LitString(value)
         case Lit.Symbol(value) => LitSymbol(value)
-        case otherwise => throw new NotSupportedMetaTree(otherwise)
+        case otherwise => {
+          println(s"This is not supported: ${otherwise.toString}")
+          throw new NotSupportedMetaTree(otherwise)
+        }
       }
 
-      case otherwise => throw new NotSupportedMetaTree(otherwise)
+      case otherwise => {
+        println(s"This is not supported: ${otherwise.toString}")
+        throw new NotSupportedMetaTree(otherwise)
+      }
     }
 
     case current: scala.meta.Mod => current match {
@@ -714,7 +726,10 @@ object CustomTreeTranslator {
       case Mod.Override() => Override()
       case Mod.Super() => Super()
       case Mod.Final() => Final()
-      case otherwise => throw new NotSupportedMetaTree(otherwise)
+      case otherwise => {
+        println(s"This is not supported: ${otherwise.toString}")
+        throw new NotSupportedMetaTree(otherwise)
+      }
     }
 
     case current: scala.meta.Defn => current match {
@@ -745,7 +760,29 @@ object CustomTreeTranslator {
                 scalaMetaToCustomTree(ctor).asInstanceOf[PrimaryCtor],
                 scalaMetaToCustomTree(templ).asInstanceOf[CustomTemplate])
 
-      case otherwise => throw new NotSupportedMetaTree(otherwise)
+      case Defn.Class(mods, name, tparams, ctor, templ) =>
+        DefClass(mods.map(scalaMetaToCustomTree(_).asInstanceOf[CustomMod]),
+                 scalaMetaToCustomTree(name).asInstanceOf[TypeName],
+                 tparams.map(scalaMetaToCustomTree(_).asInstanceOf[TypeParam]),
+                 scalaMetaToCustomTree(ctor).asInstanceOf[PrimaryCtor],
+                 scalaMetaToCustomTree(templ).asInstanceOf[CustomTemplate])
+
+      case Defn.Object(mods, name, templ) =>
+        DefObject(mods.map(scalaMetaToCustomTree(_).asInstanceOf[CustomMod]),
+                  scalaMetaToCustomTree(name).asInstanceOf[TypeName],
+                  scalaMetaToCustomTree(templ).asInstanceOf[CustomTemplate])
+
+      case Defn.Trait(mods, name, tparams, ctor, templ) =>
+        DefTrait(mods.map(scalaMetaToCustomTree(_).asInstanceOf[CustomMod]),
+                 scalaMetaToCustomTree(name).asInstanceOf[TypeName],
+                 tparams.map(scalaMetaToCustomTree(_).asInstanceOf[TypeParam]),
+                 scalaMetaToCustomTree(ctor).asInstanceOf[PrimaryCtor],
+                 scalaMetaToCustomTree(templ).asInstanceOf[CustomTemplate])
+
+      case otherwise => {
+        println(s"This is not supported: ${otherwise.toString}")
+        throw new NotSupportedMetaTree(otherwise)
+      }
     }
 
     case scala.meta.Template(early, inits, self, stats) =>
@@ -770,15 +807,24 @@ object CustomTreeTranslator {
       case Importee.Given(tpe: CustomType) => ImporteeGiven(scalaMetaToCustomTree(tpe).asInstanceOf[CustomType])
       case Importee.GivenAll() => ImporteeGivenAll()
       case Importee.Name(name: CustomName) => ImporteeName(scalaMetaToCustomTree(name).asInstanceOf[CustomName])
-      case otherwise => throw new NotSupportedMetaTree(otherwise)
+      case otherwise => {
+        println(s"This is not supported: ${otherwise.toString}")
+        throw new NotSupportedMetaTree(otherwise)
+      }
     }
 
     case current: CustomPat => current match {
       case Pat.Var(name: Term.Name) => PatVar(scalaMetaToCustomTree(name).asInstanceOf[TermName])
-      case otherwise => throw new NotSupportedMetaTree(otherwise)
+      case otherwise => {
+        println(s"This is not supported: ${otherwise.toString}")
+        throw new NotSupportedMetaTree(otherwise)
+      }
     }
 
-    case otherwise => throw new NotSupportedMetaTree(otherwise)
+    case otherwise => {
+      println(s"This is not supported: ${otherwise.toString}")
+      throw new NotSupportedMetaTree(otherwise)
+    }
   }
 
   // do a pattern matching on (ctree: CustomTree)
