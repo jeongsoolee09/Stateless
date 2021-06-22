@@ -75,6 +75,9 @@ case class TypeName(value: String) extends CustomType {
   def apply(value: String) = new TypeName(value)
 }
 
+case class TypeApply(tpe: Type, arg: List[Type]) extends CustomType {
+  def apply(tpe: Type, arg: List[Type]) = new TypeApply(tpe, arg)
+}
 
 /* ============ CustomStat ============ */
 sealed trait CustomStat extends CustomTree
@@ -274,6 +277,11 @@ case class TermThrow(expr: CustomTerm) extends CustomTerm {
 
 /* ============ CustomLit ============ */
 sealed trait CustomLit extends CustomTerm with CustomPat with CustomType
+
+case class LitNull() extends CustomLit {
+  def apply() = new LitNull()
+}
+
 case class LitInt(value: scala.Int) extends CustomLit {
   def apply(value: scala.Int) = new LitInt(value)
 }
@@ -443,17 +451,13 @@ case class DefClass(mods: List[CustomMod],
 }
 
 case class DefObject(mods: List[CustomMod],
-                     name: TypeName,
+                     name: TermName,
                      templ: CustomTemplate) extends CustomDefn {
   def apply(mods: List[CustomMod],
-            name: TypeName,
-            tparams: List[TypeParam],
-            ctor: PrimaryCtor,
-            templ: CustomTemplate) = new DefEnum(mods,
-                                                 name,
-                                                 tparams,
-                                                 ctor,
-                                                 templ)
+            name: TermName,
+            templ: CustomTemplate) = new DefObject(mods,
+                                                   name,
+                                                   templ)
 }
 
 case class DefTrait(mods: List[CustomMod],

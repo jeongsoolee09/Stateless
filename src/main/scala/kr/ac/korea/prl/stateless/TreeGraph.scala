@@ -431,27 +431,27 @@ object TreeGraph {
 
 
         case current @ SecondaryCtor(mods, name, paramss, init, stats) => {
-            acc.addVertex(current)
-            if (!previous.equals(current))
-              acc.addEdge(previous, current)
+          acc.addVertex(current)
+          if (!previous.equals(current))
+            acc.addEdge(previous, current)
 
-            // mods
-            mods.foreach(inner(current, _, acc))
+          // mods
+          mods.foreach(inner(current, _, acc))
 
-            // name
-            acc.addVertex(name)
-            acc.addEdge(current, name)
+          // name
+          acc.addVertex(name)
+          acc.addEdge(current, name)
 
-            // paramss
-            paramss.foreach(_.foreach(inner(current, _, acc)))
+          // paramss
+          paramss.foreach(_.foreach(inner(current, _, acc)))
 
-            // init: ignored
+          // init: ignored
 
-            // stats
-            stats.foreach(inner(current, _, acc))
+          // stats
+          stats.foreach(inner(current, _, acc))
 
-            acc
-          }
+          acc
+        }
 
         case current @ CustomTemplate(_, _, _, stats) => {
           acc.addVertex(current)
@@ -551,7 +551,7 @@ object TreeGraph {
   }
 
 
-  def truncatedPrint(tree: Tree): String = {
+  def truncatedPrint(tree: CustomTree): String = {
     val string = tree.toString()
     string.slice(0, 15)+"..."
   }
@@ -588,8 +588,10 @@ object TreeGraph {
   }
 
 
-  def defunIsInGraph(defun: Defn.Def, graph: DirectedAcyclicGraph[CustomTree, DefaultEdge]) = {
-    val vertexList = graph.vertexSet().asScala.toList
-    vertexList.filter(isDefun)
-  }
+  def defunIsInGraph(defun: DefDef, graph: DirectedAcyclicGraph[CustomTree, DefaultEdge]) =
+    graph.vertexSet()
+      .asScala
+      .toList
+      .filter(isDefun)
+      .contains(defun)
 }
