@@ -9,7 +9,6 @@ import java.net.URI
 object TreeReader {
 
   def read(uri: String): Tree = {
-    // 일단은 하드코딩
     val path = Paths.get("", uri)
     val bytes = Files.readAllBytes(path)
     val text = new String(bytes, "UTF-8")
