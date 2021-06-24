@@ -54,12 +54,125 @@ object TreeGraph {
         DirectedAcyclicGraph[CustomTree, DefaultEdge] = {
       tree match {
 
+        case current @ CustomInit(tpe, name, argss) => {
+          acc.addVertex(current)
+          if (!previous.equals(current))
+            acc.addEdge(previous, current)
+
+          // tpe
+          inner(current, tpe, acc)
+
+          // name
+          inner(current, name, acc)
+
+          // argss
+          argss.foreach(_.foreach(inner(current, _, acc)))
+
+          acc
+        }
+
+        case current @ CustomSelf(name, decltpe) => {
+          acc.addVertex(current)
+          if (!previous.equals(current))
+            acc.addEdge(previous, current)
+
+          // name
+          inner(current, name, acc)
+
+          // decltpe
+          if (!decltpe.isEmpty) {
+            acc.addVertex(decltpe.get.asInstanceOf[CustomTree])
+            acc.addEdge(current, decltpe.get.asInstanceOf[CustomTree])
+          }
+
+          acc
+        }
+
         case current @ TypeParam(mods, name, tparams, tbounds, vbounds, cbounds) => {
           // TypeParameter: add as is
           acc.addVertex(current)
           if (!previous.equals(current))
             acc.addEdge(previous, current)
+
           acc
+        }
+
+        case current: TypeName => {
+          // TypeName: add as is
+          acc.addVertex(current)
+          if (!(previous equals current))
+            acc.addEdge(previous, current)
+
+          acc
+        }
+
+        case current @ TypeApply(tpe, arg) => {
+          acc.addVertex(current)
+          if (!(previous equals current))
+            acc.addEdge(previous, current)
+
+          // tpe
+          acc.addVertex(tpe.asInstanceOf[CustomTree])
+          acc.addEdge(current, tpe.asInstanceOf[CustomTree])
+
+          // arg
+          arg.foreach(inner(current, _, acc))
+
+          acc
+        }
+
+        case current @ Generator(pat, rhs) => {
+          acc.addVertex(current)
+          if (!(previous equals current))
+            acc.addEdge(previous, current)
+
+          // pat
+          acc.addVertex(pat.asInstanceOf[CustomTree])
+          acc.addEdge(current, pat.asInstanceOf[CustomTree])
+
+          // rhs
+          inner(current, rhs, acc)
+
+          acc
+        }
+
+        case current @ CaseGenerator(pat, rhs) => {
+          acc.addVertex(current)
+          if (!(previous equals current))
+            acc.addEdge(previous, current)
+
+          // pat
+          acc.addVertex(pat.asInstanceOf[CustomTree])
+          acc.addEdge(current, pat.asInstanceOf[CustomTree])
+
+          // rhs
+          inner(current, rhs, acc)
+
+          acc
+        }
+
+        case current @ Val(pat, rhs) => {
+          acc.addVertex(current)
+          if (!(previous equals current))
+            acc.addEdge(previous, current)
+
+          // pat
+          acc.addVertex(pat.asInstanceOf[CustomTree])
+          acc.addEdge(current, pat.asInstanceOf[CustomTree])
+
+          // rhs
+          inner(current, rhs, acc)
+
+          acc
+        }
+
+        case current @ Guard(cond) => {
+          acc.addVertex(current)
+          if (!(previous equals current))
+            acc.addEdge(previous, current)
+
+          // cond
+          inner(current, cond, acc)
         }
 
         case current: TermName => {
@@ -67,6 +180,7 @@ object TreeGraph {
           acc.addVertex(current)
           if (!previous.equals(current))
             acc.addEdge(previous, current)
+
           acc
         }
 
@@ -97,45 +211,6 @@ object TreeGraph {
           acc
         }
 
-        case current: CustomLit => {
-          // Literal: add as is
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
-          acc
-        }
-
-        case modifier: CustomMod => {
-          // Modifier: add the productPrefix
-          // modifiers cannot be given just by themselves
-          acc.addVertex(modifier)
-          acc.addEdge(previous, modifier)
-          acc
-        }
-
-        case current @ DefVal(modifiers, patterns, typeOpt, term) => {
-          acc.addVertex(current)
-
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
-
-          // modifiers
-          modifiers.foreach(inner(current, _, acc))
-
-          // patterns
-          patterns.foreach(inner(current, _, acc))
-
-          // typeOpt
-          if (!typeOpt.isEmpty) {
-            acc.addVertex(typeOpt.get.asInstanceOf[CustomTree])
-            acc.addEdge(previous, typeOpt.get.asInstanceOf[CustomTree])
-          }
-
-          // term
-          inner(current, term, acc)
-          acc
-        }
-
         case current @ TermLambda(param, body) => {
           acc.addVertex(current)
 
@@ -147,32 +222,6 @@ object TreeGraph {
 
           // body
           inner(current, body, acc)
-          acc
-        }
-
-
-        case current @ DefVar(mods, pats, decltype, rhs) => {
-          acc.addVertex(current)
-
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
-
-          // modifiers
-          mods.foreach(inner(current, _, acc))
-
-          // patterns
-          pats.foreach(inner(current, _, acc))
-
-          // decltype
-          if (!decltype.isEmpty) {
-            acc.addVertex(decltype.get.asInstanceOf[CustomTree])
-            acc.addEdge(previous, decltype.get.asInstanceOf[CustomTree])
-          }
-
-          if (!rhs.isEmpty) {
-            acc.addVertex(rhs.get.asInstanceOf[CustomTree])
-            inner(current, rhs.get.asInstanceOf[CustomTree], acc)
-          }
           acc
         }
 
@@ -201,7 +250,11 @@ object TreeGraph {
           acc.addVertex(current)
           if (!previous.equals(current))
             acc.addEdge(previous, current)
-          inner(current, fun.asInstanceOf[CustomTree], acc)
+
+          // fun
+          inner(current, fun, acc)
+
+          // args
           args.foreach(inner(current, _, acc))
           acc
         }
@@ -212,8 +265,25 @@ object TreeGraph {
             acc.addEdge(previous, current)
           inner(current, fun.asInstanceOf[CustomTree], acc)
 
+          // fun
+          inner(current, fun, acc)
+
           // args
           args.foreach(inner(current, _, acc))
+          acc
+        }
+
+        case current @ TermApplyType(fun, targs) => {
+          acc.addVertex(current)
+          if (!previous.equals(current))
+            acc.addEdge(previous, current)
+          inner(current, fun.asInstanceOf[CustomTree], acc)
+
+          // fun
+          inner(current, fun, acc)
+
+          // args
+          targs.foreach(inner(current, _, acc))
           acc
         }
 
@@ -380,38 +450,71 @@ object TreeGraph {
           acc
         }
 
-        case current @ DefDef(mods, name, tparams, paramss, decltpe, body)
-            if isDefun(current) => {
-              acc.addVertex(current)
-              if (!previous.equals(current))
-                acc.addEdge(previous, current)
+        case current: CustomLit => {
+          // Literal: add as is
+          acc.addVertex(current)
+          if (!previous.equals(current))
+            acc.addEdge(previous, current)
+          acc
+        }
 
-              // mods
-              mods.foreach(inner(current, _, acc))
+        case modifier: CustomMod => {
+          // Modifier: add the productPrefix
+          // modifiers cannot be given just by themselves
+          acc.addVertex(modifier)
+          acc.addEdge(previous, modifier)
+          acc
+        }
 
-              // name
-              acc.addVertex(name)
-              acc.addEdge(current, name.asInstanceOf[CustomTree])
+        case current @ DefVal(modifiers, patterns, typeOpt, term) => {
+          acc.addVertex(current)
 
-              // tparams
-              tparams.foreach(inner(current, _, acc))
+          if (!previous.equals(current))
+            acc.addEdge(previous, current)
 
-              // paramss
-              paramss.foreach(_.foreach(inner(current, _, acc)))
+          // modifiers
+          modifiers.foreach(inner(current, _, acc))
 
-              // decltpe
-              if (!decltpe.isEmpty) {
-                acc.addVertex(decltpe.get.asInstanceOf[CustomTree])
-                acc.addEdge(current, decltpe.get.asInstanceOf[CustomTree])
-              }
+          // patterns
+          patterns.foreach(inner(current, _, acc))
 
-              // stat
-              inner(current, body, acc)
+          // typeOpt
+          if (!typeOpt.isEmpty) {
+            acc.addVertex(typeOpt.get.asInstanceOf[CustomTree])
+            acc.addEdge(previous, typeOpt.get.asInstanceOf[CustomTree])
+          }
 
-              acc
-            }
+          // term
+          inner(current, term, acc)
+          acc
+        }
 
-        case current @ PrimaryCtor(mods, name, paramss) => {
+        case current @ DefVar(mods, pats, decltype, rhs) => {
+          acc.addVertex(current)
+
+          if (!previous.equals(current))
+            acc.addEdge(previous, current)
+
+          // modifiers
+          mods.foreach(inner(current, _, acc))
+
+          // patterns
+          pats.foreach(inner(current, _, acc))
+
+          // decltype
+          if (!decltype.isEmpty) {
+            acc.addVertex(decltype.get.asInstanceOf[CustomTree])
+            acc.addEdge(previous, decltype.get.asInstanceOf[CustomTree])
+          }
+
+          if (!rhs.isEmpty) {
+            acc.addVertex(rhs.get.asInstanceOf[CustomTree])
+            inner(current, rhs.get.asInstanceOf[CustomTree], acc)
+          }
+          acc
+        }
+
+        case current @ DefDef(mods, name, tparams, paramss, decltpe, body) => {
           acc.addVertex(current)
           if (!previous.equals(current))
             acc.addEdge(previous, current)
@@ -421,16 +524,27 @@ object TreeGraph {
 
           // name
           acc.addVertex(name)
-          acc.addEdge(current, name)
+          acc.addEdge(current, name.asInstanceOf[CustomTree])
+
+          // tparams
+          tparams.foreach(inner(current, _, acc))
 
           // paramss
           paramss.foreach(_.foreach(inner(current, _, acc)))
 
+          // decltpe
+          if (!decltpe.isEmpty) {
+            acc.addVertex(decltpe.get.asInstanceOf[CustomTree])
+            acc.addEdge(current, decltpe.get.asInstanceOf[CustomTree])
+          }
+
+          // stat
+          inner(current, body, acc)
+
           acc
         }
 
-
-        case current @ SecondaryCtor(mods, name, paramss, init, stats) => {
+        case current @ DefEnum(mods, name, tparams, ctor, templ) => {
           acc.addVertex(current)
           if (!previous.equals(current))
             acc.addEdge(previous, current)
@@ -440,29 +554,21 @@ object TreeGraph {
 
           // name
           acc.addVertex(name)
-          acc.addEdge(current, name)
+          acc.addEdge(current, name.asInstanceOf[CustomTree])
 
-          // paramss
-          paramss.foreach(_.foreach(inner(current, _, acc)))
+          // tparams
+          tparams.foreach(inner(current, _, acc))
 
-          // init: ignored
+          // ctor
+          acc.addVertex(ctor)
+          acc.addEdge(current, ctor.asInstanceOf[CustomTree])
 
-          // stats
-          stats.foreach(inner(current, _, acc))
-
-          acc
-        }
-
-        case current @ CustomTemplate(_, _, _, stats) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
-
-          // stats
-          stats.foreach(inner(current, _, acc))
+          // templ
+          templ.stats.foreach(inner(current, _, acc))
 
           acc
         }
+
 
         case current @ DefClass(mods, name, tparams, ctor, templ) => {
           acc.addVertex(current)
@@ -506,6 +612,42 @@ object TreeGraph {
           acc
         }
 
+        case current @ DefTrait(mods, name, tparams, ctor, templ) => {
+          acc.addVertex(current)
+          if (!previous.equals(current))
+            acc.addEdge(previous, current)
+
+          // mods
+          mods.foreach(inner(current, _, acc))
+
+          // name
+          acc.addVertex(name)
+          acc.addEdge(current, name.asInstanceOf[CustomTree])
+
+          // tparams
+          tparams.foreach(inner(current, _, acc))
+
+          // ctor
+          acc.addVertex(ctor)
+          acc.addEdge(current, ctor.asInstanceOf[CustomTree])
+
+          // templ
+          templ.stats.foreach(inner(current, _, acc))
+
+          acc
+        }
+
+        case current @ CustomTemplate(_, _, _, stats) => {
+          acc.addVertex(current)
+          if (!previous.equals(current))
+            acc.addEdge(previous, current)
+
+          // stats
+          stats.foreach(inner(current, _, acc))
+
+          acc
+        }
+
         case current @ CustomSource(stats) => {
           acc.addVertex(current)
           if (!previous.equals(current))
@@ -528,8 +670,8 @@ object TreeGraph {
           acc
         }
 
-        case _: Import =>
-          // ignore imports
+        case _: CustomImport =>
+          // ignore imports for now
           acc
 
         case current: CustomPat => {
@@ -537,6 +679,56 @@ object TreeGraph {
           acc.addVertex(current);
           if (!previous.equals(current))
             acc.addEdge(previous, current.asInstanceOf[CustomTree])
+          acc
+        }
+
+        case current: CustomName => {
+          // Name: add as is
+          acc.addVertex(current);
+          if (!previous.equals(current))
+            acc.addEdge(previous, current.asInstanceOf[CustomTree])
+          acc
+        }
+
+        case current @ PrimaryCtor(mods, name, paramss) => {
+          acc.addVertex(current)
+          if (!previous.equals(current))
+            acc.addEdge(previous, current)
+
+          // mods
+          mods.foreach(inner(current, _, acc))
+
+          // name
+          acc.addVertex(name)
+          acc.addEdge(current, name)
+
+          // paramss
+          paramss.foreach(_.foreach(inner(current, _, acc)))
+
+          acc
+        }
+
+
+        case current @ SecondaryCtor(mods, name, paramss, init, stats) => {
+          acc.addVertex(current)
+          if (!previous.equals(current))
+            acc.addEdge(previous, current)
+
+          // mods
+          mods.foreach(inner(current, _, acc))
+
+          // name
+          acc.addVertex(name)
+          acc.addEdge(current, name)
+
+          // paramss
+          paramss.foreach(_.foreach(inner(current, _, acc)))
+
+          // init: ignored
+
+          // stats
+          stats.foreach(inner(current, _, acc))
+
           acc
         }
 
