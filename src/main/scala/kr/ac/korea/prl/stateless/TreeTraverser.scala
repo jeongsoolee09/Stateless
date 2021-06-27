@@ -8,8 +8,6 @@ import scala.collection.JavaConverters._
 import scala.math.Ordering.Int
 import scala.util.{Try, Success, Failure}
 
-import java.io.InvalidClassException
-
 import org.jgrapht.traverse.BreadthFirstIterator
 import org.jgrapht.graph.DefaultEdge
 
@@ -310,9 +308,7 @@ object TreeTraverser {
     return findKeysWithMaxVal(methodsAndDepth) match {
       case Success(succResult) => succResult.map(_.asInstanceOf[DefDef].name)
       case Failure(failResult) => failResult match {
-        case EmptyInputList => {
-          List(TermName("ph"))
-        }
+        case EmptyInputList => List(TermName("ph"))
       }
     }
   }
