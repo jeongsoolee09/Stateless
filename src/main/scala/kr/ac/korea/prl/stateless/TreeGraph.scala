@@ -674,11 +674,14 @@ object TreeGraph {
           // ignore imports for now
           acc
 
-        case current: CustomPat => {
-          // Pattern: add as is
+        case current @ PatVar(name: TermName) => {
           acc.addVertex(current);
           if (!previous.equals(current))
             acc.addEdge(previous, current.asInstanceOf[CustomTree])
+
+          // name
+          inner(current, name, acc)
+
           acc
         }
 

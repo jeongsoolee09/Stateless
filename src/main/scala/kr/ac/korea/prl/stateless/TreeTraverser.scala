@@ -6,6 +6,7 @@ import scala.meta.contrib._
 import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConverters._
 import scala.math.Ordering.Int
+import scala.util.{Try, Success, Failure}
 
 import java.io.InvalidClassException
 
@@ -16,7 +17,8 @@ import kr.ac.korea.prl.stateless.TreeGraph._
 import kr.ac.korea.prl.stateless.CustomTree._
 import org.jgrapht.graph.DirectedAcyclicGraph
 
-object ThisIsImpossible extends Exception
+case object ThisIsImpossible extends Exception
+case object EmptyInputList extends Exception
 
 object TreeTraverser {
 
@@ -54,146 +56,6 @@ object TreeTraverser {
     case _: CustomSource  => true
     case _: CustomPkg     => true
     case _                => false
-  }
-
-  /**
-    * Collect all the vars in the given tree.
-    * NOTE: This function is deprecated as scala.meta.Tree is no longer used directly.
-    *
-    * @param tree
-    * @return List of triples: ClassID * MethodID * VarID * TypeOption * TermOption
-    */
-  def varCollector(tree: Tree):
-      List[(Type.Name, Term.Name, Term.Name,
-            Option[Type], Option[Term])] = {
-
-    def isInteresting(elem: Stat) = elem match {
-      /* ============ Decl ============ */
-      case _: Decl.Var => true
-      /* ============ Defn ============ */
-      case _: Defn.Var => true
-      case _: Defn.Def => true
-      case _: Defn.Class => true
-      case _: Defn.Trait => true
-      case _: Defn.Object => true
-      /* ============ Term ============ */
-      case _: Term.Block => true
-      case _: Term.If => true
-      case _: Term.Try => true
-      case _: Term.While => true
-      case _: Term.For => true
-      /* ============ Source ============ */
-      case _: Source => true
-      case _: Pkg => true
-
-      case otherwise => false
-    }
-
-    def functionBodyIsComposite(statPossiblyBlock: Term): Boolean =
-      statPossiblyBlock match {
-        case _: Term.Block => true
-        case _: Term.If    => true
-        case _: Term.Try   => true
-        case _: Term.While => true
-        case _: Term.For   => true
-        case _            => false
-      }
-
-    def inner(tree: Tree, currentClass: Type.Name, currentMethod: Term.Name,
-              acc: List[(Type.Name, Term.Name, Term.Name, Option[Type], Option[Term])]):
-        List[(Type.Name, Term.Name, Term.Name, Option[Type], Option[Term])] =
-      tree match {
-        /* ============ Decl ============ */
-        case Decl.Var(_, List(Pat.Var(termName)), valType) =>
-          (currentClass, currentMethod, termName, Some(valType), None)::acc
-
-        /* ============ Defn ============ */
-        case Defn.Var(_, List(Pat.Var(termName)), typeOpt, value) =>
-          (currentClass, currentMethod, termName, typeOpt, value)::acc
-
-        case defn @ Defn.Def(_) if (!isDefun(defn)) =>
-          acc
-
-        case Defn.Def(_, newMethodName, _, _, _, body) =>  // Defun case
-          if (functionBodyIsComposite(body))
-            inner(body, currentClass, newMethodName, acc)
-          else
-            acc
-
-        case Defn.Class(_, newClassName, _, _, Template(_, _, _, body)) =>
-          body.foldLeft(List[(Type.Name, Term.Name, Term.Name,
-                              Option[Type], Option[Term])]())((a, elem) =>
-            inner(elem, newClassName, currentMethod, List())++a) ++ acc
-
-        case Defn.Trait(_, _, _, _, templ) => templ match {
-          case Template(_, _, _, stats) =>
-            stats.filter(isInteresting).foldLeft(List[(Type.Name, Term.Name, Term.Name,
-                                                       Option[Type], Option[Term])]())((a, elem) =>
-              inner(elem, currentClass, currentMethod, List())++a) ++ acc
-          case _                        => throw ThisIsImpossible
-        }
-
-        case Defn.Object(_, newObjectName, templ) => templ match {
-          case Template(_, _, _, stats) =>
-            stats.filter(isInteresting).foldLeft(List[(Type.Name, Term.Name, Term.Name,
-                                                       Option[Type], Option[Term])]())((a, elem) =>
-              inner(elem, currentClass, currentMethod, List())++a) ++ acc
-          case _                        => throw ThisIsImpossible
-        }
-
-        /* ============ Term ============ */
-        case Term.Block(stats) =>
-          stats.filter(isInteresting).foldLeft(List[(Type.Name, Term.Name, Term.Name,
-                                                     Option[Type], Option[Term])]())((a, elem) =>
-            inner(elem, currentClass, currentMethod, List())++a) ++ acc
-
-        case Term.If(_, thenBranch, elseBranch) => {
-          val collectedFromThen = if (isInteresting(thenBranch))
-                                    inner(thenBranch, currentClass, currentMethod, List())
-                                  else List()
-          val collectedFromElse = if (isInteresting(elseBranch))
-                                    inner(elseBranch, currentClass, currentMethod, List())
-                                  else List()
-          collectedFromThen ++ collectedFromElse ++ acc
-        }
-
-        case Term.Try(tryStat, catchCases, finallyOpt) => finallyOpt match {
-          case Some(finallyStat) => {
-            val collectedFromTry = inner(tryStat, currentClass, currentMethod, List())
-            val collectedFromFinally = inner(finallyStat, currentClass, currentMethod, List())
-            collectedFromTry ++ collectedFromFinally ++ acc
-          }
-          case None              => {
-            val collectedFromTry = inner(tryStat, currentClass, currentMethod, List())
-            collectedFromTry ++ acc
-          }
-        }
-
-        case Term.While(_, body) =>
-          inner(body, currentClass, currentMethod, acc)
-
-        case Term.For(_, body) =>
-          inner(body, currentClass, currentMethod, acc)
-
-        /* ============ Source ============ */
-        case Source(stats) =>
-          stats.filter(isInteresting).foldLeft(List[(Type.Name, Term.Name, Term.Name,
-                                                     Option[Type], Option[Term])]())((a, elem) =>
-            inner(elem, currentClass, currentMethod, List())++a) ++ acc
-
-        /* ============ Pkg ============ */
-        case Pkg(_, stats) =>
-          stats.filter(isInteresting).foldLeft(List[(Type.Name, Term.Name, Term.Name,
-                                                     Option[Type], Option[Term])]())((a, elem) =>
-            inner(elem, currentClass, currentMethod, List())++a) ++ acc
-
-        case otherwise => {
-          println(otherwise);
-          throw new MatchError(otherwise.productPrefix)
-        }
-      }
-
-    inner(tree, Type.Name("ph"), Term.Name("ph"), List())
   }
 
 
@@ -260,17 +122,21 @@ object TreeTraverser {
           val smoltree = innerIterator.next()
           if (smoltree.isInstanceOf[DefVar]) {
             val defVar = smoltree.asInstanceOf[DefVar]
-            val myClass = findMyClass(smoltree, treeGraph)
-            val myMeth = findMyMethod(smoltree, treeGraph)
-            val myName = defVar.pats.head.asInstanceOf[TermName]
+            val myClasses = findMyClasses(smoltree, treeGraph)
+            val myMethods = findMyMethods(smoltree, treeGraph)
+            val myName = defVar.pats.head.asInstanceOf[PatVar].name.asInstanceOf[TermName]
             val myTypeName = defVar.decltpe
             val myDefVal = defVar.rhs
-            list.+=((myClass, myMeth, myName, myTypeName, myDefVal))
+            val allCombinations = for {
+              myClass <- myClasses
+              myMethod <- myMethods
+            } yield (myClass, myMethod, myName, myTypeName, myDefVal)
+            allCombinations.foreach(list += _)
           }
         }
       }
     }
-    list.toList
+    list.toList.distinct
   }
 
 
@@ -281,7 +147,7 @@ object TreeTraverser {
         List[(TypeName, TypeName)] = tree match {
 
       /* ============ Class ============ */
-      case DefClass(_, newClassName, _, _, Template(_, _, _, body)) =>
+      case DefClass(_, newClassName, _, _, CustomTemplate(_, _, _, body)) =>
         (currentClass, newClassName)::body.foldLeft(List[(TypeName, TypeName)]())((a, elem) =>
           inner(elem.asInstanceOf[CustomTree], newClassName, List())++a) ++ acc
 
@@ -295,10 +161,10 @@ object TreeTraverser {
         stats.filter(scopeGreaterThanClass).foldLeft(List[(TypeName, TypeName)]())((a, elem) =>
           inner(elem.asInstanceOf[CustomTree], currentClass, List())++a) ++ acc
 
-      case _ => acc
+      case otherwise => acc
     }
 
-    inner(tree, TypeName("ph"), List())
+    inner(tree, TypeName("toplevel"), List())
   }
 
 
@@ -310,197 +176,7 @@ object TreeTraverser {
     * @param vars the vars in question
     * @return list of pairs comprised of class names and method names
     */
-  def referringMethodCollector(tree: Tree,
-                               vars: List[(Type.Name, Term.Name, Term.Name,
-                                           Option[Type], Option[Term])]):
-      List[(Type.Name, Term.Name)] = {
-    val globalScopeVarNamesOnly: List[Term.Name] = vars.filter(varTup =>
-      varTup._2.isEqual(Term.Name("ph"))).map(_._3)
-
-    def treeIsInTreeList(tree: Tree, treeList: List[Tree]): Boolean =
-      treeList.foldLeft[Boolean](false)((acc, treeElem) =>
-        tree.isEqual(treeElem) || acc)
-
-    def inner(tree: Tree,
-              currentClass: Type.Name,
-              currentMethod: Term.Name,
-              acc: List[(Type.Name, Term.Name)]):
-        List[(Type.Name, Term.Name)] = {
-
-      tree match {
-        case _: Lit => acc
-
-        case _: Import => acc
-
-        // here
-        case Pat.Var(varName) =>
-          if (treeIsInTreeList(varName, globalScopeVarNamesOnly))
-            (currentClass, currentMethod)::acc
-          else
-            acc
-
-        case Defn.Val(_, _, _, term) =>
-          if (treeIsInTreeList(term, globalScopeVarNamesOnly))
-            (currentClass, currentMethod)::acc
-          else
-            acc
-
-        case Defn.Var(_, _, _, termOpt) =>
-          termOpt match {
-            case None       => acc
-            case Some(term) => inner(term, currentClass, currentMethod, acc)
-          }
-
-        case defn @ Defn.Def(_, newMethodName, _, _, _, stat)
-            if isDefun(defn) =>
-          inner(stat, currentClass, newMethodName, acc)
-
-        case termName: Term.Name =>
-          if (treeIsInTreeList(termName, globalScopeVarNamesOnly))
-            (currentClass, currentMethod)::acc
-          else
-            acc
-
-        case Term.Interpolate(prefix, parts, args) => {
-          val found = args.foldLeft(false)((acc, arg) =>
-            acc || treeIsInTreeList(arg, globalScopeVarNamesOnly))
-          if (found)
-            (currentClass, currentMethod)::acc
-          else
-            acc
-        }
-
-        case Term.Select(term, name) =>
-          inner(term, currentClass, currentMethod, acc)
-
-        case Term.Apply(_, args) => {
-          val found = args.foldLeft(false)((acc, arg) =>
-            acc || treeIsInTreeList(arg, globalScopeVarNamesOnly))
-          if (found)
-            (currentClass, currentMethod)::acc
-          else
-            acc
-        }
-
-        case Term.ApplyUsing(_, args) => {
-          val found = args.foldLeft(false)((acc, arg) =>
-            acc || treeIsInTreeList(arg, globalScopeVarNamesOnly))
-          if (found)
-            (currentClass, currentMethod)::acc
-          else acc
-        }
-
-        case Term.ApplyInfix(lhs, _, _, args) => {
-          val argFound = args.foldLeft(false)((acc, arg) =>
-            acc || treeIsInTreeList(arg, globalScopeVarNamesOnly))
-          val lhsFound = treeIsInTreeList(lhs, globalScopeVarNamesOnly);
-          (argFound, lhsFound) match {
-            case (false, false) => acc
-            case _ => (currentClass, currentMethod)::acc
-          }
-        }
-
-        case Term.ApplyUnary(_, arg) =>
-          if (treeIsInTreeList(arg, globalScopeVarNamesOnly))
-            (currentClass, currentMethod)::acc
-          else acc
-
-        case Term.Assign(lhs, rhs) =>
-          if (treeIsInTreeList(lhs, globalScopeVarNamesOnly) ||
-                treeIsInTreeList(rhs, globalScopeVarNamesOnly))
-            (currentClass, currentMethod)::acc
-          else acc
-
-        // here
-        case Term.Return(expr) =>
-          if (treeIsInTreeList(expr, globalScopeVarNamesOnly))
-            (currentClass, currentMethod)::acc
-          else acc
-
-        case Term.Block(stats) =>
-          stats.foldLeft(List[(Type.Name, Term.Name)]())((a, stat) =>
-            inner(stat, currentClass, currentMethod, List())++a) ++ acc
-
-        case Term.If(cond, thenBranch, elseBranch) => {
-          val emptyList = List[(Type.Name, Term.Name)]()
-          val collectedFromCond = inner(cond, currentClass,
-                                        currentMethod, emptyList)
-          val collectedFromThen = inner(thenBranch,
-                                        currentClass, currentMethod, emptyList)
-          val collectedFromElse = inner(elseBranch, currentClass,
-                                        currentMethod, emptyList)
-          collectedFromCond ++ collectedFromThen ++
-            collectedFromElse ++ acc
-        }
-
-        case Term.Try(expr, _, finallyStats) => {
-          val emptyList = List[(Type.Name, Term.Name)]()
-          val collectedFromTry = inner(expr, currentClass, currentMethod, emptyList)
-          val collectedFromFinally = finallyStats match {
-            case None       => List()
-            case Some(expr) => inner(expr, currentClass, currentMethod, emptyList)
-          }
-          collectedFromTry ++ collectedFromFinally ++ acc
-        }
-
-        case Term.While(cond, body) => {
-          val emptyList = List[(Type.Name, Term.Name)]()
-          val collectedFromCond = inner(cond, currentClass, currentMethod, emptyList)
-          val collectedFromBody = inner(body, currentClass, currentMethod, emptyList)
-          collectedFromCond ++ collectedFromBody ++ acc
-        }
-
-        case Term.For(_, body) => {
-          val emptyList = List[(Type.Name, Term.Name)]()
-          inner(body, currentClass, currentMethod, emptyList) ++ acc
-        }
-
-        case Term.Throw(expr) => {
-          val emptyList = List[(Type.Name, Term.Name)]()
-          inner(expr, currentClass, currentMethod, emptyList)
-        }
-
-        case Term.New(Init(_, _, argss)) =>
-          argss.map(_.foldLeft(List[(Type.Name, Term.Name)]())((a, stat) =>
-                      inner(stat, currentClass, currentMethod, List())++a))
-            .foldLeft(List[(Type.Name, Term.Name)]())((a, elem) =>
-              elem ++ a)
-
-        case Defn.Class(_, newClassName, _, _, Template(_, _, _, stats)) =>
-          stats.foldLeft(List[(Type.Name, Term.Name)]())((a, elem) =>
-            inner(elem, newClassName, currentMethod, List())++a) ++ acc
-
-        case Defn.Object(_, Term.Name(newClassNameString), Template(_, _, _, stats)) =>
-          stats.foldLeft(List[(Type.Name, Term.Name)]())((a, elem) =>
-            inner(elem, Type.Name(newClassNameString), currentMethod, List())++a) ++ acc
-
-        case Source(stats) =>
-          stats.foldLeft(List[(Type.Name, Term.Name)]())((a, elem) =>
-            inner(elem, currentClass, currentMethod, List())++a) ++ acc
-
-        case Pkg(_, stats) =>
-          stats.foldLeft(List[(Type.Name, Term.Name)]())((a, elem) =>
-            inner(elem, currentClass, currentMethod, List())++a) ++ acc
-
-        case otherwise => {
-          println(s"""You missed (referringMethodCollector/inner): ${otherwise} which is: ${otherwise.productPrefix} and its structure is ${otherwise.structure}""")
-          acc
-        }
-      }
-    }
-    inner(tree, Type.Name("ph"), Term.Name("ph"), List());
-  }
-
-
-  /**
-    * Collects the class names and identifiers of the methods that
-    * refers to the given vars.
-    *
-    * @param tree the tree to search
-    * @param vars the vars in question
-    * @return list of pairs comprised of class names and method names
-    */
-  def referringMethodCollector(tree: CustomTree,
+  def referringMethodCollector(customTree: CustomTree,
                                vars: List[(TypeName, TermName, TermName,
                                            Option[CustomType], Option[CustomTerm])]):
       List[(TypeName, TermName)] = {
@@ -508,7 +184,7 @@ object TreeTraverser {
     val globalScopeVarNamesOnly: List[TermName] = vars.filter(varTup =>
       varTup._2.equals(TermName("ph"))).map(_._3)
 
-    val treeGraph = TreeGraph.graphFromCustomTree(tree)
+    val treeGraph = TreeGraph.graphFromCustomTree(customTree)
     val iterator = new BreadthFirstIterator[CustomTree, DefaultEdge](treeGraph)
     val list = ListBuffer[(TypeName, TermName)]()
 
@@ -518,20 +194,34 @@ object TreeTraverser {
         // spawn another BFS
         val innerIterator = new BreadthFirstIterator(TreeGraph.graphFromCustomTree(elem))
         while (innerIterator.hasNext()) {
+          // catching Patterns
           val smoltree = innerIterator.next()
-          if ((smoltree.isInstanceOf[PatVar] &&
-                 globalScopeVarNamesOnly.contains(smoltree
-                                                    .asInstanceOf[PatVar]
-                                                    .name))) {
-            val patVar = smoltree.asInstanceOf[PatVar]
-            val myClass = findMyClass(smoltree, treeGraph)
-            val myMeth = findMyMethod(smoltree, treeGraph)
-            list.+=((myClass, myMeth))
+          if (smoltree.isInstanceOf[PatVar]) {
+            val smoltreeVarName = smoltree.asInstanceOf[PatVar].name
+            if (globalScopeVarNamesOnly.contains(smoltreeVarName)) {
+              val allCombinations = for {
+                myClass <- findMyClasses(smoltree, treeGraph)
+                myMeth <- findMyMethods(smoltree, treeGraph)
+              } yield (myClass, myMeth)
+              allCombinations.foreach(list += _)
+            }
+          }
+
+          // catching generic Term Names
+          if (smoltree.isInstanceOf[TermName]) {
+            val smoltreeVarName = smoltree.asInstanceOf[TermName]
+            if (globalScopeVarNamesOnly.contains(smoltreeVarName)) {
+              val allCombinations = for {
+                myClass <- findMyClasses(smoltree, treeGraph)
+                myMeth <- findMyMethods(smoltree, treeGraph)
+              } yield (myClass, myMeth)
+              allCombinations.foreach(list += _)
+            }
           }
         }
       }
     }
-    list.toList
+    list.toList.distinct
   }
 
 
@@ -541,61 +231,90 @@ object TreeTraverser {
     * @param alist: Tuple list where the second element is an integer.
     * @return the max key with the maximum value.
     */
-  def findKeyWithMaxVal[A, Int](alist: List[(A, Int)]): A = {
-
-    implicit def orderingInt[Int]: Ordering[Int] =
-      Ordering.by(identity)
-
+  def findKeysWithMaxVal(alist: List[(CustomTree, Int)]):
+  Try[List[CustomTree]] = Try {
+    if (alist.isEmpty)
+      throw EmptyInputList
     val vals = alist.map(_._2)
-    val maxVal = vals.max(orderingInt[Int])
-    val cellsWithMaxVal = alist.filter(tup => tup._2 == maxVal)
-    assert(cellsWithMaxVal.length == 1)
-    cellsWithMaxVal.head._1
+    val maxVal = vals.max
+    alist.filter(tup => tup._2 == maxVal).map(_._1)
   }
 
 
-  def findMyClass(elem: CustomTree,
-                  treeGraph: DirectedAcyclicGraph[CustomTree, DefaultEdge]):
-      TypeName = {
+  def classOrObjectCaster(ctree: CustomTree):
+      Either[DefClass, DefObject] = {
+    try {
+      Left(ctree.asInstanceOf[DefClass])
+    } catch {
+      case _: ClassCastException =>
+        Right(ctree.asInstanceOf[DefObject])
+    }
+  }
+
+
+  def extractTypeNameFromClassOrObject(ctree: CustomTree): TypeName = {
+    try {
+      ctree.asInstanceOf[DefClass].name
+    } catch {
+      case _: ClassCastException =>
+        TypeName(ctree.asInstanceOf[DefObject].name.value)
+    }
+  }
+
+
+  def findMyClasses(elem: CustomTree,
+                    treeGraph: DirectedAcyclicGraph[CustomTree, DefaultEdge]):
+      List[TypeName] = {
     // find elem's predecessor in treeGraph whose class is defClass or defObject
-    val classes = treeGraph.getAncestors(elem)
-      .asScala
-      .toList
-      .filter(isClassDef)
+    val classes = treeGraph.getAncestors(elem).asScala.toList.filter(isClassDef)
 
     // now, get the most specific defClass: because defClass can be nested
     val bfsIterator = new BreadthFirstIterator[CustomTree, DefaultEdge](treeGraph)
+
+    // first, drain out the iterator
+    while (bfsIterator.hasNext) { val _ = bfsIterator.next() }
 
     val classesAndDepth = classes.map(klass =>
       (klass, bfsIterator.getDepth(klass))
     )
 
     // get the maximum class in terms of depth
-    findKeyWithMaxVal(classesAndDepth).asInstanceOf[TypeName]
+    return findKeysWithMaxVal(classesAndDepth) match {
+      case Success(succResult) => succResult.map(extractTypeNameFromClassOrObject(_))
+      case Failure(failResult) => {
+        println(s"elem: ${elem.toString}")
+        throw EmptyInputList
+      }
+    }
   }
 
 
-  def findMyMethod(elem: CustomTree,
-                   treeGraph: DirectedAcyclicGraph[CustomTree, DefaultEdge]):
-      TermName = {
+  def findMyMethods(elem: CustomTree,
+                    treeGraph: DirectedAcyclicGraph[CustomTree, DefaultEdge]):
+      List[TermName] = {
 
     // find elem's predecessor in treeGraph which is a defun
-    val methods = treeGraph.getAncestors(elem)
-      .asScala
-      .toList
-      .filter(isDefun)
+    val methods = treeGraph.getAncestors(elem).asScala.toList.filter(isDefun)
 
     // now, get the most specific defun: because defuns can be nested
-
     val bfsIterator = new BreadthFirstIterator[CustomTree, DefaultEdge](treeGraph)
+
+    // first, drain out the iterator
+    while (bfsIterator.hasNext) { val _ = bfsIterator.next() }
 
     val methodsAndDepth = methods.map(meth =>
       (meth, bfsIterator.getDepth(meth))
     )
 
     // get the maximum meth in terms of depth
-
-    findKeyWithMaxVal(methodsAndDepth).asInstanceOf[TermName]
+    return findKeysWithMaxVal(methodsAndDepth) match {
+      case Success(succResult) => succResult.map(_.asInstanceOf[DefDef].name)
+      case Failure(failResult) => failResult match {
+        case EmptyInputList => {
+          List(TermName("ph"))
+        }
+      }
+    }
   }
 
 
@@ -610,6 +329,8 @@ object TreeTraverser {
     val treeGraph = TreeGraph.graphFromCustomTree(customTree)
     val iterator = new BreadthFirstIterator(treeGraph)
     val list = ListBuffer[(TypeName, TermName)]()
+    val targetCalleeClass = callee._1
+    val targetCalleeName = callee._2
 
     while (iterator.hasNext) {
       val elem = iterator.next()
@@ -620,19 +341,20 @@ object TreeTraverser {
         while (innerIterator.hasNext) {
           val smoltree = innerIterator.next()
           if (smoltree.isInstanceOf[TermApply]) {
-            val methodIdentifierMatches = smoltree.asInstanceOf[TermApply]
-              .fun
-              .asInstanceOf[TermName]
-              .equals(customTree.asInstanceOf[TermName])
-            val methodClassMatches = findMyClass(smoltree, TreeGraph.graphFromCustomTree(customTree)).
-              equals(customTree.asInstanceOf[TypeName])
-            if (methodIdentifierMatches && methodClassMatches)
-              list.+=((findMyClass(smoltree, TreeGraph.graphFromCustomTree(customTree)),
-                       smoltree.asInstanceOf[TermName]))
+            val methodClassMatches = findMyClasses(smoltree, TreeGraph.graphFromCustomTree(customTree))
+              .equals(callee._1)
+            val methodIdentifierMatches = smoltree.asInstanceOf[TermApply].fun match {
+              case target: TermName => target.asInstanceOf[TermName] equals callee._2
+              case target: TermSelect => target.name equals callee._2
+            }
+            if (methodClassMatches && methodIdentifierMatches)
+              findMyClasses(smoltree, TreeGraph.graphFromCustomTree(customTree)).foreach(
+                myClass => list.+=((myClass, smoltree.asInstanceOf[TermApply].fun.asInstanceOf[TermName]))
+              )
           }
         }
       }
     }
-    list.toList
+    list.toList.distinct
   }
 }

@@ -38,7 +38,9 @@ object CustomTreeTranslator {
 
     case Type.Name(value) => TypeName(value)
 
-    case Type.Apply(tpe: Type, args: List[Type]) => TypeApply(tpe, args)
+    case Type.Apply(tpe: Type, args: List[Type]) =>
+      TypeApply(scalaMetaToCustomTree(tpe).asInstanceOf[CustomType],
+                args.map(scalaMetaToCustomTree(_).asInstanceOf[CustomType]))
 
     case Enumerator.Generator(pat, rhs) =>
       Generator(scalaMetaToCustomTree(pat).asInstanceOf[CustomPat],

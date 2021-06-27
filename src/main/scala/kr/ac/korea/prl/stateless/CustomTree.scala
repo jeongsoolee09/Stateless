@@ -75,8 +75,8 @@ case class TypeName(value: String) extends CustomType {
   def apply(value: String) = new TypeName(value)
 }
 
-case class TypeApply(tpe: Type, arg: List[Type]) extends CustomType {
-  def apply(tpe: Type, arg: List[Type]) = new TypeApply(tpe, arg)
+case class TypeApply(tpe: CustomType, arg: List[CustomType]) extends CustomType {
+  def apply(tpe: CustomType, arg: List[CustomType]) = new TypeApply(tpe, arg)
 }
 
 /* ============ CustomStat ============ */
@@ -552,4 +552,8 @@ case class ImporteeName(name: CustomName) extends CustomImportee {
 
 case class CustomImport(importers: List[CustomImporter]) extends CustomStat {
   def apply(importers: List[CustomImporter]) = new CustomImport(importers)
+}
+
+object CustomTree {
+  // TODO under construction
 }
