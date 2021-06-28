@@ -6,6 +6,13 @@ import kr.ac.korea.prl.stateless.TreeGraph._
 import kr.ac.korea.prl.stateless.CustomTree._
 import kr.ac.korea.prl.stateless.CustomTreeTranslator._
 
+// I guess it's not best practice but...
+import TreeReader._
+import TreeTraverser._
+import TreeGraph._
+import CustomTree._
+import CustomTreeTranslator._
+
 import scala.meta._
 import scala.meta.contrib._
 
@@ -13,16 +20,16 @@ object Main extends App {
   val dir =
     "/Users/jslee/Dropbox/Stateless/benchmarks/Scala/FunctionalImplementation/Bags/BagNotFunctional.scala"
 
-  val bagTree: Tree = TreeReader.read(dir)
-  val bagCustomTree = CustomTreeTranslator.scalaMetaToCustomTree(bagTree)
+  val bagTree: Tree = read(dir)
+  val bagCustomTree = scalaMetaToCustomTree(bagTree)
 
-  val vars = TreeTraverser.varCollector(bagCustomTree)
+  val vars = varCollector(bagCustomTree)
 
-  val innerClassChain = TreeTraverser.innerClassChainCollector(bagCustomTree)
+  val innerClassChain = innerClassChainCollector(bagCustomTree)
 
-  val varReferringMethods = TreeTraverser.referringMethodCollector(bagCustomTree, vars)
+  val varReferringMethods = referringMethodCollector(bagCustomTree, vars)
 
-  TreeTraverser.callerCollector(bagCustomTree, varReferringMethods(1))
+  callerCollector(bagCustomTree, varReferringMethods(1))
 
-  // TreeGraph.generateDOT(bagTree, "BAG.dot")
+  generateDOT(bagCustomTree, "BAG.dot")
 }
