@@ -17,10 +17,11 @@ import org.jgrapht.graph.DirectedAcyclicGraph
 
 case object ThisIsImpossible extends Exception
 case object EmptyInputList extends Exception
+case class  InvalidInput(content: String) extends Exception
 
 object TreeTraverser {
 
-  def truncatedPrint(tree: CustomTree): String = {
+  def truncatedString(tree: CustomTree): String = {
     val string = tree.toString()
     string.slice(0, 15)+"..."
   }
@@ -352,5 +353,62 @@ object TreeTraverser {
       }
     }
     list.toList.distinct
+  }
+
+
+  /**
+    * Retrieves the parameter list of the given function definition.
+    *
+    * @param Function definition as the CustomTree type
+    * @return Parameter list as the TermParam type
+    */
+  def paramListRetreiver(defun: CustomTree): TermParam = {
+    if (!defun.isInstanceOf[DefDef]) {
+      throw new InvalidInput(truncatedString(defun))
+    }
+    val treeGraph = TreeGraph.graphFromCustomTree(defun)
+    val iterator = new BreadthFirstIterator(treeGraph)
+
+    while (iterator.hasNext) {
+      val elem = iterator.next()
+      if (elem.isInstanceOf[TermParam])
+        return elem.asInstanceOf[TermParam]
+    }
+
+    // if control ever hits this line...
+    throw new InvalidInput(truncatedString(defun))
+  }
+
+
+  /**
+    *
+    *
+    * @param defclass
+    * @return
+    */
+  def stateTupMaker(defclass: CustomTree) = {
+    if (!defclass.isInstanceOf[DefClass]) {
+      throw new InvalidInput(truncatedString(defclass))
+    }
+
+    def catMaybes[A](optionList: List[Option[A]]): List[A] = {
+      for {
+        some <- optionList.filter(opt => !opt.isEmpty)
+        value <- some
+      } yield value
+    }
+
+    val vars = varCollector(defclass)
+    // a toplevelvar is a var with ph as method name, and some initial value
+    val toplevelVars = vars.filter(
+      tup => {
+        val methodName = tup._2
+        val initialVal = tup._5
+        methodName.equals(TermName("ph")) && !initialVal.isEmpty
+      }
+    )
+
+    // since we cannot cast this into a tuple directly, we just return a list
+    catMaybes[CustomTerm](toplevelVars.map(_._5))
   }
 }
