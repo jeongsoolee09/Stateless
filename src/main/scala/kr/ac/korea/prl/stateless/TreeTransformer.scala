@@ -84,24 +84,18 @@ class TreeTransformer {
     val fromTermParam = TreeTraverser.paramListRetreiver(defun)
     val toTermParam = constructTermParam(to)
 
-    // reconstruct the edges
-    for {
-      edge <- graph.incomingEdgesOf(fromTermParam.asInstanceOf[CustomTree]).asScala
-      val parent = graph.getEdgeSource(edge)
-      val _ = graph.addVertex(parent)
-      val _ = graph.addEdge(parent, toTermParam.asInstanceOf[CustomTree])
-    }
+    val incomingEdges = graph.incomingEdgesOf(fromTermParam).asScala
+    val outgoingEdges = graph.outgoingEdgesOf(fromTermParam).asScala
 
-    for {
-      edge <- graph.outgoingEdgesOf(fromTermParam.asInstanceOf[CustomTree]).asScala
-      val child = graph.getEdgeTarget(edge)
-      val _ = graph.addVertex(child)
-      val _ = graph.addEdge(child, toTermParam.asInstanceOf[CustomTree])
-    }
+    val parents = incomingEdges.map(graph.getEdgeSource(_))
+    val children = outgoingEdges.map(graph.getEdgeTarget(_))
 
-    // remove the vertex
+    parents.foreach(graph.removeEdge(_, fromTermParam))
+    children.foreach(graph.removeEdge(fromTermParam, _))
+
     graph.removeVertex(fromTermParam)
 
-    graph
+    parents.foreach(graph.addEdge(_, toTermParam.asInstanceOf[CustomTree]))
+    children.foreach(graph.addEdge(toTermParam.asInstanceOf[CustomTree], _))
   }
 }
