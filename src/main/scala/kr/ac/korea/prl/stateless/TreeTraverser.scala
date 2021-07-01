@@ -13,6 +13,7 @@ import org.jgrapht.graph.DefaultEdge
 
 import kr.ac.korea.prl.stateless.TreeGraph._
 import kr.ac.korea.prl.stateless.CustomTree._
+import kr.ac.korea.prl.stateless.Utils._
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 case object ThisIsImpossible extends Exception
@@ -279,7 +280,7 @@ object TreeTraverser {
 
     // get the maximum class in terms of depth
     return findKeysWithMaxVal(classesAndDepth) match {
-      case Success(succResult) => succResult.map(extractTypeNameFromClassOrObject(_))
+      case Success(succResult) => succResult.map(extractTypeNameFromClassOrObject)
       case Failure(failResult) => {
         println(s"elem: ${elem.toString}")
         throw EmptyInputList
@@ -305,7 +306,6 @@ object TreeTraverser {
       (meth, bfsIterator.getDepth(meth))
     )
 
-    // get the maximum meth in terms of depth
     return findKeysWithMaxVal(methodsAndDepth) match {
       case Success(succResult) => succResult.map(_.asInstanceOf[DefDef].name)
       case Failure(failResult) => failResult match {
@@ -343,6 +343,7 @@ object TreeTraverser {
             val methodIdentifierMatches = smoltree.asInstanceOf[TermApply].fun match {
               case target: TermName => target.asInstanceOf[TermName] equals callee._2
               case target: TermSelect => target.name equals callee._2
+              case _ => throw ThisIsImpossible
             }
             if (methodClassMatches && methodIdentifierMatches)
               findMyClasses(smoltree, TreeGraph.graphFromCustomTree(customTree)).foreach(
@@ -353,6 +354,88 @@ object TreeTraverser {
       }
     }
     list.toList.distinct
+  }
+
+
+  /**
+    *
+    *
+    * @param customTree
+    * @param caller
+    * @return
+    */
+  def calleeCollector(customTree: CustomTree,
+                      caller: (TypeName, TermName)):
+      List[(TypeName, TermName)] = {
+    val treeGraph = TreeGraph.graphFromCustomTree(customTree)
+    val targetCalleeClass = caller._1
+    val targetCalleeName = caller._2
+
+    val iterator = new BreadthFirstIterator(treeGraph)
+
+    var callerTree = Lit.Null.asInstanceOf[CustomTree]  // Just a placeholder definition
+
+    // first, spot the caller tree
+    while (iterator.hasNext) {
+      val elem = iterator.next()
+      if (isDefun(elem)) {
+        val funName = elem.asInstanceOf[DefDef].name
+        if (funName equals targetCalleeName) {
+          callerTree = elem
+        }
+      }
+    }
+
+    assert(!(callerTree equals Lit.Null))  // callerTree being equal to Lit.null
+                                           // means the above search failed.
+
+    // now, we spawn another BFS to search within the callerTree for a TermApply.
+    val treeGraph2 = TreeGraph.graphFromCustomTree(callerTree)
+    val iterator2 = new BreadthFirstIterator(treeGraph2)
+
+    val acc = ListBuffer[(TypeName, TermName)]()
+
+    while (iterator2.hasNext) {
+      val elem = iterator.next()
+      if (elem.isInstanceOf[TermApply]) {
+        val funName = elem.asInstanceOf[TermApply].fun.asInstanceOf[TermName]
+        val myClasses = findMyClasses(elem, treeGraph)
+        myClasses.foreach(
+          klass => acc.+=((klass, funName))
+        )
+      }
+    }
+    acc.toList.distinct
+  }
+
+
+  /**
+    *
+    *
+    * @param customTree
+    * @return
+    */
+  def mutatingStatCollectorInDefun(defun: CustomTree,
+                                   vars: List[(TypeName, TermName, TermName,
+                                               Option[CustomType], Option[CustomTerm])])
+                                                  : List[Stat] = {
+    if (!defun.isInstanceOf[DefDef]) {
+      throw new InvalidInput(truncatedString(defun))
+    }
+
+    val treeGraph = TreeGraph.graphFromCustomTree(defun)
+    val iterator = new BreadthFirstIterator(treeGraph)
+
+    val acc = ListBuffer[Stat]()
+
+    while (iterator.hasNext) {
+      val elem = iterator.next()
+      if (elem.isInstanceOf[TermAssign]) {
+        ???
+      }
+    }
+
+    ???
   }
 
 
@@ -386,17 +469,11 @@ object TreeTraverser {
     * @param defclass
     * @return
     */
-  def stateTupMaker(defclass: CustomTree) = {
+  def stateTupMaker(defclass: CustomTree): List[(CustomTree, TermName)] = {
     if (!defclass.isInstanceOf[DefClass]) {
       throw new InvalidInput(truncatedString(defclass))
     }
 
-    def catMaybes[A](optionList: List[Option[A]]): List[A] = {
-      for {
-        some <- optionList.filter(opt => !opt.isEmpty)
-        value <- some
-      } yield value
-    }
 
     val vars = varCollector(defclass)
     // a toplevelvar is a var with ph as method name, and some initial value
@@ -409,6 +486,33 @@ object TreeTraverser {
     )
 
     // since we cannot cast this into a tuple directly, we just return a list
-    catMaybes[CustomTerm](toplevelVars.map(_._5))
+    val initValues = Utils.catMaybes[CustomTerm](toplevelVars.map(_._5))
+    val names = toplevelVars.map(_._3)
+
+    assert(initValues.length == names.length)
+
+    initValues.zip(names)
+  }
+
+
+  /**
+    * Collects all state-mutating statements in a given defun.
+    *
+    * @param defun
+    * @param defClass
+    */
+  def stateMutatingStatCollector(defun: CustomTree,
+                                 defclass: CustomTree) : List[Stat] = {
+    // Precondition check
+    if (!defun.isInstanceOf[DefDef]) {
+      throw new InvalidInput(truncatedString(defun))
+    }
+    if (!defclass.isInstanceOf[DefClass]) {
+      throw new InvalidInput(truncatedString(defclass))
+    }
+
+    val vars = varCollector(defclass)
+
+    ??? // TODO
   }
 }

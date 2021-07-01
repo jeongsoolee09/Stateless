@@ -8,10 +8,17 @@ import kr.ac.korea.prl.stateless.CustomTree._
 import kr.ac.korea.prl.stateless.TreeGraph._
 
 import scala.collection.JavaConverters._
+import kr.ac.korea.prl.stateless.CustomTreeTranslator.CustomTreeTranslator
 
 case object TODO extends Exception
 
 class TreeTransformer {
+
+  def truncatedString(tree: CustomTree): String = {
+    val string = tree.toString()
+    string.slice(0, 15)+"..."
+  }
+
 
   /**
     * Remove all top-level vars in the class definitions.
@@ -66,8 +73,17 @@ class TreeTransformer {
   }
 
 
+  /**
+    *
+    *
+    * @param defun
+    * @param to
+    */
   def signatureTransformer(defun: CustomTree,
-                           to: List[(TermName, TypeName)]) = {
+                           to: List[(TermName, TypeName)]): Unit = {
+    if (!defun.isInstanceOf[DefDef]) {
+      throw new InvalidInput(truncatedString(defun))
+    }
     val graph = TreeGraph.graphFromCustomTree(defun)
 
     def constructTermParam(material: List[(TermName, TypeName)]) = {
@@ -97,5 +113,42 @@ class TreeTransformer {
 
     parents.foreach(graph.addEdge(_, toTermParam.asInstanceOf[CustomTree]))
     children.foreach(graph.addEdge(toTermParam.asInstanceOf[CustomTree], _))
+  }
+
+
+  def addImport(toplevel: CustomTree,
+                packageString: String): CustomTree =
+    toplevel match {
+      case TermBlock(stats) => {
+        val importStat = ("import "+packageString).parse[Stat].get.asInstanceOf[Import]
+        val customImportStat = CustomTreeTranslator.scalaMetaToCustomTree(importStat).asInstanceOf[CustomStat]
+        TermBlock(customImportStat::stats)
+      }
+      case _ => toplevel
+    }
+
+
+  /**
+    *
+    *
+    * @param defun
+    */
+  def pipingAdder(defclass: CustomTree, defun: CustomTree): CustomTree = {
+    if (!defun.isInstanceOf[DefDef]) {
+      throw new InvalidInput(truncatedString(defun))
+    }
+
+    // adding import statement
+    val body = defun.asInstanceOf[DefDef].body
+    val newbody = body match {
+      case current @ TermBlock(stats) =>
+        addImport(defun, "scala.util.chaining._").asInstanceOf[CustomTerm]
+      case _ =>
+        println("""TreeTransformer.pipingAdder:
+No changes made since function body is a single statement."""); body
+    }
+
+    val toplevelVars = toplevelVarSpotter(defclass)
+    ???
   }
 }
