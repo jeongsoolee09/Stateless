@@ -22,6 +22,10 @@ case class  InvalidInput(content: String) extends Exception
 
 object TreeTraverser {
 
+  type TreeGraph = DirectedAcyclicGraph[CustomTree, DefaultEdge]
+  type BFS = BreadthFirstIterator[CustomTree, DefaultEdge]
+
+
   def truncatedString(tree: CustomTree): String = {
     val string = tree.toString()
     string.slice(0, 15)+"..."
@@ -108,7 +112,7 @@ object TreeTraverser {
       }
 
     val treeGraph = TreeGraph.graphFromCustomTree(tree)
-    val iterator = new BreadthFirstIterator(treeGraph)
+    val iterator = new BFS(treeGraph)
     val list = ListBuffer[(TypeName, TermName,
                            TermName, Option[CustomType],
                            Option[CustomTerm])]()
@@ -117,7 +121,7 @@ object TreeTraverser {
       val elem = iterator.next()
       if (isInteresting(elem)) {
         // spawn another BFS
-        val innerIterator = new BreadthFirstIterator(TreeGraph.graphFromCustomTree(elem))
+        val innerIterator = new BFS(TreeGraph.graphFromCustomTree(elem))
         while (innerIterator.hasNext) {
           val smoltree = innerIterator.next()
           if (smoltree.isInstanceOf[DefVar]) {
@@ -185,14 +189,14 @@ object TreeTraverser {
       varTup._2.equals(TermName("ph"))).map(_._3)
 
     val treeGraph = TreeGraph.graphFromCustomTree(customTree)
-    val iterator = new BreadthFirstIterator[CustomTree, DefaultEdge](treeGraph)
+    val iterator = new BFS(treeGraph)
     val list = ListBuffer[(TypeName, TermName)]()
 
     while (iterator.hasNext()) {
       val elem = iterator.next()
       if (isDefun(elem)) {
         // spawn another BFS
-        val innerIterator = new BreadthFirstIterator(TreeGraph.graphFromCustomTree(elem))
+        val innerIterator = new BFS(TreeGraph.graphFromCustomTree(elem))
         while (innerIterator.hasNext()) {
           // catching Patterns
           val smoltree = innerIterator.next()
@@ -263,13 +267,13 @@ object TreeTraverser {
 
 
   def findMyClasses(elem: CustomTree,
-                    treeGraph: DirectedAcyclicGraph[CustomTree, DefaultEdge]):
+                    treeGraph: TreeGraph):
       List[TypeName] = {
     // find elem's predecessor in treeGraph whose class is defClass or defObject
     val classes = treeGraph.getAncestors(elem).asScala.toList.filter(isClassDef)
 
     // now, get the most specific defClass: because defClass can be nested
-    val bfsIterator = new BreadthFirstIterator[CustomTree, DefaultEdge](treeGraph)
+    val bfsIterator = new BFS(treeGraph)
 
     // first, drain out the iterator
     while (bfsIterator.hasNext) { val _ = bfsIterator.next() }
@@ -290,14 +294,14 @@ object TreeTraverser {
 
 
   def findMyMethods(elem: CustomTree,
-                    treeGraph: DirectedAcyclicGraph[CustomTree, DefaultEdge]):
+                    treeGraph: TreeGraph):
       List[TermName] = {
 
     // find elem's predecessor in treeGraph which is a defun
     val methods = treeGraph.getAncestors(elem).asScala.toList.filter(isDefun)
 
     // now, get the most specific defun: because defuns can be nested
-    val bfsIterator = new BreadthFirstIterator[CustomTree, DefaultEdge](treeGraph)
+    val bfsIterator = new BFS(treeGraph)
 
     // first, drain out the iterator
     while (bfsIterator.hasNext) { val _ = bfsIterator.next() }
@@ -324,7 +328,7 @@ object TreeTraverser {
   def callerCollector(customTree: CustomTree, callee: (TypeName, TermName)):
       List[(TypeName, TermName)] = {
     val treeGraph = TreeGraph.graphFromCustomTree(customTree)
-    val iterator = new BreadthFirstIterator(treeGraph)
+    val iterator = new BFS(treeGraph)
     val list = ListBuffer[(TypeName, TermName)]()
     val targetCalleeClass = callee._1
     val targetCalleeName = callee._2
@@ -333,7 +337,7 @@ object TreeTraverser {
       val elem = iterator.next()
       if (isDefun(elem)) {
         // spawn another BFS
-        val innerIterator = new BreadthFirstIterator(TreeGraph.graphFromCustomTree(elem))
+        val innerIterator = new BFS(TreeGraph.graphFromCustomTree(elem))
         // look for calls
         while (innerIterator.hasNext) {
           val smoltree = innerIterator.next()
@@ -371,9 +375,9 @@ object TreeTraverser {
     val targetCalleeClass = caller._1
     val targetCalleeName = caller._2
 
-    val iterator = new BreadthFirstIterator(treeGraph)
+    val iterator = new BFS(treeGraph)
 
-    var callerTree = Lit.Null.asInstanceOf[CustomTree]  // Just a placeholder definition
+    var callerTree = LitNull().asInstanceOf[CustomTree]  // Just a placeholder definition
 
     // first, spot the caller tree
     while (iterator.hasNext) {
@@ -386,17 +390,17 @@ object TreeTraverser {
       }
     }
 
-    assert(!(callerTree equals Lit.Null))  // callerTree being equal to Lit.null
-                                           // means the above search failed.
+    assert(!(callerTree equals LitNull().asInstanceOf[CustomTree]))  // callerTree being equal to LitNull
+                                                                    // means the above search failed.
 
     // now, we spawn another BFS to search within the callerTree for a TermApply.
     val treeGraph2 = TreeGraph.graphFromCustomTree(callerTree)
-    val iterator2 = new BreadthFirstIterator(treeGraph2)
+    val iterator2 = new BFS(treeGraph2)
 
     val acc = ListBuffer[(TypeName, TermName)]()
 
     while (iterator2.hasNext) {
-      val elem = iterator.next()
+      val elem = iterator2.next()
       if (elem.isInstanceOf[TermApply]) {
         val funName = elem.asInstanceOf[TermApply].fun.asInstanceOf[TermName]
         val myClasses = findMyClasses(elem, treeGraph)
@@ -415,27 +419,25 @@ object TreeTraverser {
     * @param customTree
     * @return
     */
-  def mutatingStatCollectorInDefun(defun: CustomTree,
-                                   vars: List[(TypeName, TermName, TermName,
-                                               Option[CustomType], Option[CustomTerm])])
-                                                  : List[Stat] = {
+  def varMutatingStatCollectorInDefun(defun: CustomTree): List[Stat] = {
     if (!defun.isInstanceOf[DefDef]) {
       throw new InvalidInput(truncatedString(defun))
     }
 
+    def isObjectName(target: TermName): Boolean = target.value(0).isUpper
+
     val treeGraph = TreeGraph.graphFromCustomTree(defun)
-    val iterator = new BreadthFirstIterator(treeGraph)
+    val iterator = new BFS(treeGraph)
 
     val acc = ListBuffer[Stat]()
 
     while (iterator.hasNext) {
       val elem = iterator.next()
       if (elem.isInstanceOf[TermAssign]) {
-        ???
+        acc += elem.asInstanceOf[Stat]
       }
     }
-
-    ???
+    acc.toList
   }
 
 
@@ -450,7 +452,7 @@ object TreeTraverser {
       throw new InvalidInput(truncatedString(defun))
     }
     val treeGraph = TreeGraph.graphFromCustomTree(defun)
-    val iterator = new BreadthFirstIterator(treeGraph)
+    val iterator = new BFS(treeGraph)
 
     while (iterator.hasNext) {
       val elem = iterator.next()
