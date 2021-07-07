@@ -52,7 +52,7 @@ object SummarizedTreeGraph {
       case current: TermThrow => current.productPrefix
       case current: TermSuper => current.productPrefix
       case current: TermThis => current.productPrefix
-      case current: LitNull => "LitNull"           // atom
+      case current: LitNull => current.toString // atom
       case current: LitInt => current.toString  // atom
       case current: LitDouble => current.toString  // atom
       case current: LitFloat => current.toString  // atom
