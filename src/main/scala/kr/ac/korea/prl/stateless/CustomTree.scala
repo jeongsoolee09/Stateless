@@ -1,7 +1,13 @@
+/**
+  * Scala source code <=> ScalaMeta Tree <=> CustomTree <=> TreeGraph <=> SummarizedTreeGraph
+  *                                          ^^^^^^^^^^
+  */
+
+
 package kr.ac.korea.prl.stateless.CustomTree
 
 /**
-  * A custom lightweigh tree that provides a layer between scala.meta.Tree and jgrapht graphs
+  * A custom lightweight tree that provides a layer between scala.meta.Tree and jgrapht graphs
   * This focuses to serve simple Scala codes.
   *
   */
@@ -554,6 +560,10 @@ case class CustomImport(importers: List[CustomImporter]) extends CustomStat {
   def apply(importers: List[CustomImporter]) = new CustomImport(importers)
 }
 
-object CustomTree {
-  // TODO under construction
-}
+
+/* ============ ASTList ============ */
+// the "id" slot keeps each instances distinct in a VertexSet.
+case class ASTList(id: Int) extends CustomTree
+case class ASTSome(id: Int) extends CustomTree
+case class ASTNone(id: Int) extends CustomTree
+

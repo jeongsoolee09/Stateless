@@ -61,6 +61,10 @@ object TreeGraph {
     */
   def graphFromCustomTree(tree: CustomTree): TreeGraph = {
 
+    var ASTListCounter = 0
+    var ASTSomeCounter = 0
+    var ASTNoneCounter = 0
+
     /** Do a preliminary move, i.e. registering current to the previous. */
     def preliminary(previous: CustomTree,
                     current: CustomTree,
@@ -79,32 +83,35 @@ object TreeGraph {
     }
 
     /** Handle a List node by recursing on it. */
-    def addListNode(previous: CustomTree,
+    def addListNode(current: CustomTree,
                     listNode: List[CustomTree],
                     acc: TreeGraph) = {
-      val stubListNode = ASTList()
+      val stubListNode = ASTList(ASTListCounter)
+      ASTListCounter += 1
       acc.addVertex(stubListNode)
-      acc.addEdge(previous, stubListNode)
+      acc.addEdge(current, stubListNode)
       listNode.foreach(inner(stubListNode, _, acc))
     }
 
     /** Handle a List of List of node by recursing on it. */
-    def addOptionNode(previous: CustomTree,
+    def addOptionNode(current: CustomTree,
                       optionNode: Option[CustomTree],
                       acc: TreeGraph) = optionNode match {
 
       case None => {
         // add the ASTNone stub node and finish
-        val stubOptionNode = ASTNone()
+        val stubOptionNode = ASTNone(ASTNoneCounter)
+        ASTNoneCounter += 1
         acc.addVertex(stubOptionNode)
-        acc.addEdge(previous, stubOptionNode)
+        acc.addEdge(current, stubOptionNode)
       }
 
       case Some(value) => {
         // first, add the ASTSome stub node
-        val stubOptionNode = ASTSome()
+        val stubOptionNode = ASTSome(ASTSomeCounter)
+        ASTSomeCounter += 1
         acc.addVertex(stubOptionNode)
-        acc.addEdge(previous, stubOptionNode)
+        acc.addEdge(current, stubOptionNode)
 
         // then, connect the content below the stub node
         acc.addVertex(value.asInstanceOf[CustomTree])
@@ -112,12 +119,13 @@ object TreeGraph {
       }
     }
 
-    def addListListNode(previous: CustomTree,
+    def addListListNode(current: CustomTree,
                         listListNode: List[List[CustomTree]],
                         acc: TreeGraph) = {
-      val stubListListNode = ASTList()
+      val stubListListNode = ASTList(ASTListCounter)
+      ASTListCounter += 1
       acc.addVertex(stubListListNode)
-      acc.addEdge(previous, stubListListNode)
+      acc.addEdge(current, stubListListNode)
       listListNode.foreach(_.foreach(inner(stubListListNode, _, acc)))
     }
 
@@ -139,7 +147,7 @@ object TreeGraph {
           addCustomTerm(current, name, acc)
 
           // argss
-          addListListNode(previous, argss, acc)
+          addListListNode(current, argss, acc)
 
           acc
         }
@@ -151,7 +159,7 @@ object TreeGraph {
           addCustomTerm(current, name, acc)
 
           // decltpe
-          addOptionNode(previous, decltpe, acc)
+          addOptionNode(current, decltpe, acc)
 
           acc
         }
@@ -160,22 +168,22 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // mods
-          addListNode(previous, mods, acc)
+          addListNode(current, mods, acc)
 
           // name
           addSimpleNode(current, name, acc)
 
           // tparams
-          addListNode(previous, tparams, acc)
+          addListNode(current, tparams, acc)
 
           // tbounds
           addSimpleNode(current, tbounds, acc)
 
           // vbounds
-          addListNode(previous, vbounds, acc)
+          addListNode(current, vbounds, acc)
 
           // cbounds
-          addListNode(previous, cbounds, acc)
+          addListNode(current, cbounds, acc)
 
           acc
         }
@@ -193,7 +201,7 @@ object TreeGraph {
           addSimpleNode(current, tpe, acc)
 
           // arg
-          addListNode(previous, arg, acc)
+          addListNode(current, arg, acc)
 
           acc
         }
@@ -251,16 +259,16 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // mods
-          addListNode(previous, mods, acc)
+          addListNode(current, mods, acc)
 
           // name
           addSimpleNode(previous, name, acc)
 
           // decltpe
-          addOptionNode(previous, decltpe, acc)
+          addOptionNode(current, decltpe, acc)
 
           // default
-          addOptionNode(previous, default, acc)
+          addOptionNode(current, default, acc)
 
           acc
         }
@@ -269,7 +277,7 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // param
-          addListNode(previous, param, acc)
+          addListNode(current, param, acc)
 
           // body
           addCustomTerm(current, body, acc)
@@ -293,7 +301,7 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // args
-          addListNode(previous, args, acc)
+          addListNode(current, args, acc)
 
           acc
         }
@@ -305,7 +313,7 @@ object TreeGraph {
           addSimpleNode(current, fun, acc)
 
           // args
-          addListNode(previous, args, acc)
+          addListNode(current, args, acc)
 
           acc
         }
@@ -317,7 +325,7 @@ object TreeGraph {
           addSimpleNode(current, fun, acc)
 
           // args
-          addListNode(previous, args, acc)
+          addListNode(current, args, acc)
 
           acc
         }
@@ -329,7 +337,7 @@ object TreeGraph {
           addSimpleNode(current, fun, acc)
 
           // targs
-          addListNode(previous, targs, acc)
+          addListNode(current, targs, acc)
 
           acc
         }
@@ -343,10 +351,10 @@ object TreeGraph {
           addSimpleNode(current, op, acc)
 
           // targs
-          addListNode(previous, targs, acc)
+          addListNode(current, targs, acc)
 
           // args
-          addListNode(previous, args, acc)
+          addListNode(current, args, acc)
 
           acc
         }
@@ -394,7 +402,7 @@ object TreeGraph {
           addSimpleNode(current, name, acc)
 
           // argss
-          addListListNode(previous, argss, acc)
+          addListListNode(current, argss, acc)
 
           acc
         }
@@ -403,7 +411,7 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // stats
-          addListNode(previous, stats, acc)
+          addListNode(current, stats, acc)
 
           acc
         }
@@ -430,10 +438,10 @@ object TreeGraph {
           addCustomTerm(current, expr, acc)
 
           // catchp
-          addListNode(previous, catchp, acc)
+          addListNode(current, catchp, acc)
 
           // finallyp
-          addOptionNode(previous, finallyp, acc)
+          addOptionNode(current, finallyp, acc)
 
           acc
         }
@@ -454,7 +462,7 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // iterator
-          addListNode(previous, iterator, acc)
+          addListNode(current, iterator, acc)
 
           // body
           addCustomTerm(current, body, acc)
@@ -487,13 +495,13 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // modifiers
-          addListNode(previous, mods, acc)
+          addListNode(current, mods, acc)
 
           // patterns
-          addListNode(previous, pats, acc)
+          addListNode(current, pats, acc)
 
           // typeOpt
-          addOptionNode(previous, decltpe, acc)
+          addOptionNode(current, decltpe, acc)
 
           // term
           addCustomTerm(current, rhs, acc)
@@ -504,16 +512,16 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // modifiers
-          addListNode(previous, mods, acc)
+          addListNode(current, mods, acc)
 
           // patterns
-          addListNode(previous, pats, acc)
+          addListNode(current, pats, acc)
 
           // typeOpt
-          addOptionNode(previous, decltpe, acc)
+          addOptionNode(current, decltpe, acc)
 
           // term
-          addOptionNode(previous, rhs, acc)
+          addOptionNode(current, rhs, acc)
 
           acc
         }
@@ -522,19 +530,19 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // mods
-          addListNode(previous, mods, acc)
+          addListNode(current, mods, acc)
 
           // name
           addSimpleNode(current, name, acc)
 
           // tparams
-          addListNode(previous, tparams, acc)
+          addListNode(current, tparams, acc)
 
           // paramss
-          addListListNode(previous, paramss, acc)
+          addListListNode(current, paramss, acc)
 
           // decltpe
-          addOptionNode(previous, decltpe, acc)
+          addOptionNode(current, decltpe, acc)
 
           // stat
           addCustomTerm(current, body, acc)
@@ -546,13 +554,13 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // mods
-          addListNode(previous, mods, acc)
+          addListNode(current, mods, acc)
 
           // name
           addSimpleNode(previous, name, acc)
 
           // tparams
-          addListNode(previous, tparams, acc)
+          addListNode(current, tparams, acc)
 
           // ctor
           addSimpleNode(current, ctor, acc)
@@ -567,13 +575,13 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // mods
-          addListNode(previous, mods, acc)
+          addListNode(current, mods, acc)
 
           // name
           addSimpleNode(current, name, acc)
 
           // tparams
-          addListNode(previous, tparams, acc)
+          addListNode(current, tparams, acc)
 
           // ctor
           addCustomTerm(current, ctor, acc)
@@ -588,7 +596,7 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // mods
-          addListNode(previous, mods, acc)
+          addListNode(current, mods, acc)
 
           // name
           addSimpleNode(current, name, acc)
@@ -603,13 +611,13 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // mods
-          addListNode(previous, mods, acc)
+          addListNode(current, mods, acc)
 
           // name
           addSimpleNode(current, name, acc)
 
           // tparams
-          addListNode(previous, tparams, acc)
+          addListNode(current, tparams, acc)
 
           // ctor
           addSimpleNode(current, ctor, acc)
@@ -624,16 +632,16 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // early
-          addListNode(previous, early, acc)
+          addListNode(current, early, acc)
           
           // inits
-          addListNode(previous, inits, acc)
+          addListNode(current, inits, acc)
           
           // self
           addCustomTerm(previous, self, acc)
 
           // stats
-          addListNode(previous, stats, acc)
+          addListNode(current, stats, acc)
 
           acc
         }
@@ -642,7 +650,7 @@ object TreeGraph {
           preliminary(previous, current, acc)
  
           // stats
-          addListNode(previous, stats, acc)
+          addListNode(current, stats, acc)
 
           acc
         }
@@ -651,7 +659,7 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // stats
-          addListNode(previous, stats, acc)
+          addListNode(current, stats, acc)
 
           acc
         }
@@ -679,13 +687,13 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // mods
-          addListNode(previous, mods, acc)
+          addListNode(current, mods, acc)
 
           // name
           addSimpleNode(current, name, acc)
 
           // paramss
-          addListListNode(previous, paramss, acc)
+          addListListNode(current, paramss, acc)
 
           acc
         }
@@ -695,19 +703,19 @@ object TreeGraph {
           preliminary(previous, current, acc)
 
           // mods
-          addListNode(previous, mods, acc)
+          addListNode(current, mods, acc)
 
           // name
           addSimpleNode(current, name, acc)
 
           // paramss
-          addListListNode(previous, paramss, acc)
+          addListListNode(current, paramss, acc)
 
           // init
           addCustomTerm(current, init, acc)
 
           // stats
-          addListNode(previous, stats, acc)
+          addListNode(current, stats, acc)
 
           acc
         }
