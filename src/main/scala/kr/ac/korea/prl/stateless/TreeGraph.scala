@@ -1,8 +1,13 @@
+/**
+  * Scala source code <=> ScalaMeta Tree <=> CustomTree <=> TreeGraph <=> SummarizedTreeGraph
+  *                                                     ^^^
+  */
+
 package kr.ac.korea.prl.stateless.TreeGraph
 
 import org.jgrapht.graph.DirectedAcyclicGraph
-import org.jgrapht.traverse._
 import org.jgrapht.graph.DefaultEdge
+import org.jgrapht.traverse.BreadthFirstIterator
 import org.jgrapht.Graphs._
 import org.jgrapht.nio.dot.DOTExporter
 
@@ -13,14 +18,17 @@ import scala.meta.contrib._
 import scala.collection.JavaConverters._
 
 import kr.ac.korea.prl.stateless.CustomTree._
-
-object TODO extends Exception
+import kr.ac.korea.prl.stateless.CustomTreeTranslator.CustomTreeTranslator
 
 object TreeGraph {
 
+  type TreeGraph = DirectedAcyclicGraph[CustomTree, DefaultEdge]
+  type BFS = BreadthFirstIterator[CustomTree, DefaultEdge]
+
+
   def isDefun(tree: CustomTree): Boolean = tree match {
     case DefDef(_, _, _, paramList, _, _) => !paramList.isEmpty
-    case _                                  => false
+    case _                                => false
   }
 
 
@@ -45,627 +53,605 @@ object TreeGraph {
   }
 
 
-  def graphFromCustomTree(tree: CustomTree):
-      DirectedAcyclicGraph[CustomTree, DefaultEdge] = {
+  /**
+    * CustomTree to a DirectedAcyclicGraph.
+    *
+    * @param tree
+    * @return
+    */
+  def graphFromCustomTree(tree: CustomTree): TreeGraph = {
+
+    /** Do a preliminary move, i.e. registering current to the previous. */
+    def preliminary(previous: CustomTree,
+                    current: CustomTree,
+                    acc: TreeGraph) = {
+      acc.addVertex(current)
+      if (!(previous equals current))
+        acc.addEdge(previous, current)
+    }
+
+    /** Register a simple child to a current node. */
+    def addSimpleNode(current: CustomTree,
+                      child: CustomTree,
+                      acc: TreeGraph) = {
+      acc.addVertex(child.asInstanceOf[CustomTree])
+      acc.addEdge(current, child.asInstanceOf[CustomTree])
+    }
+
+    /** Handle a List node by recursing on it. */
+    def addListNode(previous: CustomTree,
+                    listNode: List[CustomTree],
+                    acc: TreeGraph) = {
+      val stubListNode = ASTList()
+      acc.addVertex(stubListNode)
+      acc.addEdge(previous, stubListNode)
+      listNode.foreach(inner(stubListNode, _, acc))
+    }
+
+    /** Handle a List of List of node by recursing on it. */
+    def addOptionNode(previous: CustomTree,
+                      optionNode: Option[CustomTree],
+                      acc: TreeGraph) = optionNode match {
+
+      case None => {
+        // add the ASTNone stub node and finish
+        val stubOptionNode = ASTNone()
+        acc.addVertex(stubOptionNode)
+        acc.addEdge(previous, stubOptionNode)
+      }
+
+      case Some(value) => {
+        // first, add the ASTSome stub node
+        val stubOptionNode = ASTSome()
+        acc.addVertex(stubOptionNode)
+        acc.addEdge(previous, stubOptionNode)
+
+        // then, connect the content below the stub node
+        acc.addVertex(value.asInstanceOf[CustomTree])
+        acc.addEdge(stubOptionNode, value.asInstanceOf[CustomTree])
+      }
+    }
+
+    def addListListNode(previous: CustomTree,
+                        listListNode: List[List[CustomTree]],
+                        acc: TreeGraph) = {
+      val stubListListNode = ASTList()
+      acc.addVertex(stubListListNode)
+      acc.addEdge(previous, stubListListNode)
+      listListNode.foreach(_.foreach(inner(stubListListNode, _, acc)))
+    }
+
+    def addCustomTerm = inner _
 
     def inner(previous: CustomTree,
-              tree: CustomTree,
-              acc: DirectedAcyclicGraph[CustomTree, DefaultEdge]):
-        DirectedAcyclicGraph[CustomTree, DefaultEdge] = {
-      tree match {
+              current: CustomTree,
+              acc: TreeGraph):
+        TreeGraph = {
+      current match {
 
         case current @ CustomInit(tpe, name, argss) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // tpe
-          inner(current, tpe, acc)
+          addCustomTerm(current, tpe, acc)
 
           // name
-          inner(current, name, acc)
+          addCustomTerm(current, name, acc)
 
           // argss
-          argss.foreach(_.foreach(inner(current, _, acc)))
+          addListListNode(previous, argss, acc)
 
           acc
         }
 
         case current @ CustomSelf(name, decltpe) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // name
-          inner(current, name, acc)
+          addCustomTerm(current, name, acc)
 
           // decltpe
-          if (!decltpe.isEmpty) {
-            acc.addVertex(decltpe.get.asInstanceOf[CustomTree])
-            acc.addEdge(current, decltpe.get.asInstanceOf[CustomTree])
-          }
+          addOptionNode(previous, decltpe, acc)
 
           acc
         }
 
         case current @ TypeParam(mods, name, tparams, tbounds, vbounds, cbounds) => {
-          // TypeParameter: add as is
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
+
+          // mods
+          addListNode(previous, mods, acc)
+
+          // name
+          addSimpleNode(current, name, acc)
+
+          // tparams
+          addListNode(previous, tparams, acc)
+
+          // tbounds
+          addSimpleNode(current, tbounds, acc)
+
+          // vbounds
+          addListNode(previous, vbounds, acc)
+
+          // cbounds
+          addListNode(previous, cbounds, acc)
 
           acc
         }
 
-        case current: TypeName => {
-          // TypeName: add as is
-          acc.addVertex(current)
-          if (!(previous equals current))
-            acc.addEdge(previous, current)
+        case current: TypeName => { // TypeName: add as is
+          preliminary(previous, current, acc)
 
           acc
         }
 
         case current @ TypeApply(tpe, arg) => {
-          acc.addVertex(current)
-          if (!(previous equals current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // tpe
-          acc.addVertex(tpe.asInstanceOf[CustomTree])
-          acc.addEdge(current, tpe.asInstanceOf[CustomTree])
+          addSimpleNode(current, tpe, acc)
 
           // arg
-          arg.foreach(inner(current, _, acc))
+          addListNode(previous, arg, acc)
 
           acc
         }
 
         case current @ Generator(pat, rhs) => {
-          acc.addVertex(current)
-          if (!(previous equals current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // pat
-          acc.addVertex(pat.asInstanceOf[CustomTree])
-          acc.addEdge(current, pat.asInstanceOf[CustomTree])
+          addSimpleNode(current, pat, acc)
 
           // rhs
-          inner(current, rhs, acc)
+          addCustomTerm(current, rhs, acc)
 
           acc
         }
 
         case current @ CaseGenerator(pat, rhs) => {
-          acc.addVertex(current)
-          if (!(previous equals current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // pat
-          acc.addVertex(pat.asInstanceOf[CustomTree])
-          acc.addEdge(current, pat.asInstanceOf[CustomTree])
+          addSimpleNode(current, pat, acc)
 
           // rhs
-          inner(current, rhs, acc)
+          addCustomTerm(current, rhs, acc)
 
           acc
         }
 
         case current @ Val(pat, rhs) => {
-          acc.addVertex(current)
-          if (!(previous equals current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // pat
-          acc.addVertex(pat.asInstanceOf[CustomTree])
-          acc.addEdge(current, pat.asInstanceOf[CustomTree])
+          addSimpleNode(current, pat, acc)
 
           // rhs
-          inner(current, rhs, acc)
+          addCustomTerm(current, rhs, acc)
 
           acc
         }
 
         case current @ Guard(cond) => {
-          acc.addVertex(current)
-          if (!(previous equals current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // cond
-          inner(current, cond, acc)
+          addCustomTerm(current, cond, acc)
         }
 
-        case current: TermName => {
-          // Name: add as is
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+        case current: TermName => {  // Name: add as is
+          preliminary(previous, current, acc)
 
           acc
         }
 
         case current @ TermParam(mods, name, decltpe, default) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // mods
-          mods.foreach(inner(current, _, acc))
+          addListNode(previous, mods, acc)
 
           // name
-          acc.addVertex(name.asInstanceOf[CustomTree])
-          acc.addEdge(current, name.asInstanceOf[CustomTree])
+          addSimpleNode(previous, name, acc)
 
           // decltpe
-          if (!decltpe.isEmpty) {
-            acc.addVertex(decltpe.get.asInstanceOf[CustomTree])
-            acc.addEdge(current, decltpe.get.asInstanceOf[CustomTree])
-          }
+          addOptionNode(previous, decltpe, acc)
 
           // default
-          if (!default.isEmpty) {
-            acc.addVertex(default.get.asInstanceOf[CustomTree])
-            acc.addEdge(current, default.get.asInstanceOf[CustomTree])
-          }
+          addOptionNode(previous, default, acc)
 
           acc
         }
 
         case current @ TermLambda(param, body) => {
-          acc.addVertex(current)
-
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // param
-          param.foreach(param => inner(current, param.asInstanceOf[CustomTree], acc))
+          addListNode(previous, param, acc)
 
           // body
-          inner(current, body, acc)
+          addCustomTerm(current, body, acc)
+
           acc
         }
 
         case current @ TermSelect(term, name) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
-          acc.addVertex(name.asInstanceOf[CustomTree])
-          acc.addEdge(current, name.asInstanceOf[CustomTree])
-          inner(current, term.asInstanceOf[CustomTree], acc)
+          // term
+          addCustomTerm(current, term, acc)
+
+          // name
+          addSimpleNode(current, name, acc)
+
           acc
         }
 
         case current @ TermInterpolate(prefix, parts, args) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // args
-          args.foreach(inner(current, _, acc))
+          addListNode(previous, args, acc)
+
           acc
         }
 
         case current @ TermApply(fun, args) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // fun
-          inner(current, fun, acc)
+          addSimpleNode(current, fun, acc)
 
           // args
-          args.foreach(inner(current, _, acc))
+          addListNode(previous, args, acc)
+
           acc
         }
 
         case current @ TermApplyUsing(fun, args) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
-          inner(current, fun.asInstanceOf[CustomTree], acc)
+          preliminary(previous, current, acc)
 
           // fun
-          inner(current, fun, acc)
+          addSimpleNode(current, fun, acc)
 
           // args
-          args.foreach(inner(current, _, acc))
+          addListNode(previous, args, acc)
+
           acc
         }
 
         case current @ TermApplyType(fun, targs) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
-          inner(current, fun.asInstanceOf[CustomTree], acc)
+          preliminary(previous, current, acc)
 
           // fun
-          inner(current, fun, acc)
+          addSimpleNode(current, fun, acc)
 
-          // args
-          targs.foreach(inner(current, _, acc))
+          // targs
+          addListNode(previous, targs, acc)
+
           acc
         }
 
         case current @ TermApplyInfix(lhs, op, targs, args) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
+
           inner(current, lhs.asInstanceOf[CustomTree], acc)
 
           // op
-          acc.addVertex(op.asInstanceOf[CustomTree])
-          acc.addEdge(current, op.asInstanceOf[CustomTree])
+          addSimpleNode(current, op, acc)
 
           // targs
-          targs.foreach(inner(current, _, acc))
+          addListNode(previous, targs, acc)
 
           // args
-          args.foreach(inner(current, _, acc))
+          addListNode(previous, args, acc)
+
           acc
         }
 
         case current @ TermApplyUnary(op, arg) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // op
-          acc.addVertex(op.asInstanceOf[CustomTree])
-          acc.addEdge(current, op.asInstanceOf[CustomTree])
+          addSimpleNode(current, op, acc)
 
           // arg
-          inner(current, arg, acc)
+          addCustomTerm(current, arg, acc)
 
           acc
         }
 
         case current @ TermAssign(lhs, rhs) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // lhs
-          inner(current, lhs, acc)
+          addCustomTerm(current, lhs, acc)
 
           // rhs
-          inner(current, rhs, acc)
+          addCustomTerm(current, rhs, acc)
 
           acc
         }
 
         case current @ TermReturn(expr) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // expr
-          inner(current, expr, acc)
+          addCustomTerm(current, expr, acc)
 
           acc
         }
 
         case current @ TermNew(CustomInit(tpe, name, argss)) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // tpe
-          acc.addVertex(tpe.asInstanceOf[CustomTree])
-          acc.addEdge(current, tpe.asInstanceOf[CustomTree])
+          addSimpleNode(current, tpe, acc)
 
           // name
-          acc.addVertex(name.asInstanceOf[CustomTree])
-          acc.addEdge(current, name.asInstanceOf[CustomTree])
+          addSimpleNode(current, name, acc)
 
           // argss
-          argss.foreach(_.foreach(inner(current, _, acc)))
+          addListListNode(previous, argss, acc)
 
           acc
         }
 
         case current @ TermBlock(stats) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // stats
-          stats.foreach(inner(current, _, acc))
+          addListNode(previous, stats, acc)
 
           acc
         }
 
         case current @ TermIf(cond, thenBranch, elseBranch) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // cond
-          inner(current, cond, acc)
+          addCustomTerm(current, cond, acc)
 
           // thenBranch
-          inner(current, thenBranch, acc)
+          addCustomTerm(current, thenBranch, acc)
 
           // elseBranch
-          inner(current, elseBranch, acc)
+          addCustomTerm(current, elseBranch, acc)
 
           acc
         }
 
         case current @ TermTry(expr, catchp, finallyp) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // expr
-          inner(current, expr, acc)
+          addCustomTerm(current, expr, acc)
 
           // catchp
-          catchp.foreach(inner(current, _, acc))
+          addListNode(previous, catchp, acc)
 
           // finallyp
-          if (!finallyp.isEmpty) {
-            inner(current, finallyp.get.asInstanceOf[CustomTree], acc)
-          }
+          addOptionNode(previous, finallyp, acc)
 
           acc
         }
 
         case current @ TermWhile(cond, body) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // cond
-          inner(current, cond, acc)
+          addCustomTerm(current, cond, acc)
 
           // body
-          inner(current, body, acc)
+          addCustomTerm(current, body, acc)
 
           acc
         }
 
         case current @ TermFor(iterator, body) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // iterator
-          iterator.foreach(inner(current, _, acc))
+          addListNode(previous, iterator, acc)
 
           // body
-          inner(current, body, acc)
+          addCustomTerm(current, body, acc)
 
           acc
         }
 
         case current @ TermThrow(expr) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // expr
-          inner(current, expr, acc)
+          addCustomTerm(current, expr, acc)
 
           acc
         }
 
-        case current: CustomLit => {
-          // Literal: add as is
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+        case current: CustomLit => { // Literal: add as is
+          preliminary(previous, current, acc)
+
           acc
         }
 
-        case modifier: CustomMod => {
-          // Modifier: add the productPrefix
-          // modifiers cannot be given just by themselves
-          acc.addVertex(modifier)
-          acc.addEdge(previous, modifier)
+        case modifier: CustomMod => { // Modifier: add as is
+          preliminary(previous, current, acc)
+
           acc
         }
 
-        case current @ DefVal(modifiers, patterns, typeOpt, term) => {
-          acc.addVertex(current)
-
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+        case current @ DefVal(mods, pats, decltpe, rhs) => {
+          preliminary(previous, current, acc)
 
           // modifiers
-          modifiers.foreach(inner(current, _, acc))
+          addListNode(previous, mods, acc)
 
           // patterns
-          patterns.foreach(inner(current, _, acc))
+          addListNode(previous, pats, acc)
 
           // typeOpt
-          if (!typeOpt.isEmpty) {
-            acc.addVertex(typeOpt.get.asInstanceOf[CustomTree])
-            acc.addEdge(previous, typeOpt.get.asInstanceOf[CustomTree])
-          }
+          addOptionNode(previous, decltpe, acc)
 
           // term
-          inner(current, term, acc)
+          addCustomTerm(current, rhs, acc)
           acc
         }
 
-        case current @ DefVar(mods, pats, decltype, rhs) => {
-          acc.addVertex(current)
-
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+        case current @ DefVar(mods, pats, decltpe, rhs) => {
+          preliminary(previous, current, acc)
 
           // modifiers
-          mods.foreach(inner(current, _, acc))
+          addListNode(previous, mods, acc)
 
           // patterns
-          pats.foreach(inner(current, _, acc))
+          addListNode(previous, pats, acc)
 
-          // decltype
-          if (!decltype.isEmpty) {
-            acc.addVertex(decltype.get.asInstanceOf[CustomTree])
-            acc.addEdge(previous, decltype.get.asInstanceOf[CustomTree])
-          }
+          // typeOpt
+          addOptionNode(previous, decltpe, acc)
 
-          if (!rhs.isEmpty) {
-            acc.addVertex(rhs.get.asInstanceOf[CustomTree])
-            inner(current, rhs.get.asInstanceOf[CustomTree], acc)
-          }
+          // term
+          addOptionNode(previous, rhs, acc)
+
           acc
         }
 
         case current @ DefDef(mods, name, tparams, paramss, decltpe, body) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // mods
-          mods.foreach(inner(current, _, acc))
+          addListNode(previous, mods, acc)
 
           // name
-          acc.addVertex(name)
-          acc.addEdge(current, name.asInstanceOf[CustomTree])
+          addSimpleNode(current, name, acc)
 
           // tparams
-          tparams.foreach(inner(current, _, acc))
+          addListNode(previous, tparams, acc)
 
           // paramss
-          paramss.foreach(_.foreach(inner(current, _, acc)))
+          addListListNode(previous, paramss, acc)
 
           // decltpe
-          if (!decltpe.isEmpty) {
-            acc.addVertex(decltpe.get.asInstanceOf[CustomTree])
-            acc.addEdge(current, decltpe.get.asInstanceOf[CustomTree])
-          }
+          addOptionNode(previous, decltpe, acc)
 
           // stat
-          inner(current, body, acc)
+          addCustomTerm(current, body, acc)
 
           acc
         }
 
         case current @ DefEnum(mods, name, tparams, ctor, templ) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // mods
-          mods.foreach(inner(current, _, acc))
+          addListNode(previous, mods, acc)
 
           // name
-          acc.addVertex(name)
-          acc.addEdge(current, name.asInstanceOf[CustomTree])
+          addSimpleNode(previous, name, acc)
 
           // tparams
-          tparams.foreach(inner(current, _, acc))
+          addListNode(previous, tparams, acc)
 
           // ctor
-          acc.addVertex(ctor)
-          acc.addEdge(current, ctor.asInstanceOf[CustomTree])
+          addSimpleNode(current, ctor, acc)
 
           // templ
-          templ.stats.foreach(inner(current, _, acc))
+          addCustomTerm(previous, templ, acc)
 
           acc
         }
 
-
         case current @ DefClass(mods, name, tparams, ctor, templ) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // mods
-          mods.foreach(inner(current, _, acc))
+          addListNode(previous, mods, acc)
 
           // name
-          acc.addVertex(name)
-          acc.addEdge(current, name.asInstanceOf[CustomTree])
+          addSimpleNode(current, name, acc)
 
           // tparams
-          tparams.foreach(inner(current, _, acc))
+          addListNode(previous, tparams, acc)
 
           // ctor
-          inner(current, ctor.asInstanceOf[CustomTree], acc)
+          addCustomTerm(current, ctor, acc)
 
           // templ
-          inner(current, templ.asInstanceOf[CustomTree], acc)
+          addCustomTerm(current, templ, acc)
 
           acc
         }
 
         case current @ DefObject(mods, name, templ) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // mods
-          mods.foreach(inner(current, _, acc))
+          addListNode(previous, mods, acc)
 
           // name
-          acc.addVertex(name)
-          acc.addEdge(current, name.asInstanceOf[CustomTree])
+          addSimpleNode(current, name, acc)
 
           // templ
-          inner(current, templ.asInstanceOf[CustomTree], acc)
+          addCustomTerm(current, templ, acc)
 
           acc
         }
 
         case current @ DefTrait(mods, name, tparams, ctor, templ) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // mods
-          mods.foreach(inner(current, _, acc))
+          addListNode(previous, mods, acc)
 
           // name
-          acc.addVertex(name)
-          acc.addEdge(current, name.asInstanceOf[CustomTree])
+          addSimpleNode(current, name, acc)
 
           // tparams
-          tparams.foreach(inner(current, _, acc))
+          addListNode(previous, tparams, acc)
 
           // ctor
-          acc.addVertex(ctor)
-          acc.addEdge(current, ctor.asInstanceOf[CustomTree])
+          addSimpleNode(current, ctor, acc)
 
           // templ
-          templ.stats.foreach(inner(current, _, acc))
+          addCustomTerm(current, templ, acc)
 
           acc
         }
 
-        case current @ CustomTemplate(_, _, _, stats) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+        case current @ CustomTemplate(early, inits, self, stats) => {
+          preliminary(previous, current, acc)
+
+          // early
+          addListNode(previous, early, acc)
+          
+          // inits
+          addListNode(previous, inits, acc)
+          
+          // self
+          addCustomTerm(previous, self, acc)
 
           // stats
-          stats.foreach(inner(current, _, acc))
+          addListNode(previous, stats, acc)
 
           acc
         }
 
         case current @ CustomSource(stats) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
-
+          preliminary(previous, current, acc)
+ 
           // stats
-          stats.foreach(inner(current, _, acc))
+          addListNode(previous, stats, acc)
 
           acc
         }
 
         case current @ CustomPkg(_, stats) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // stats
-          stats.foreach(inner(current, _, acc))
+          addListNode(previous, stats, acc)
 
           acc
         }
@@ -675,65 +661,57 @@ object TreeGraph {
           acc
 
         case current @ PatVar(name: TermName) => {
-          acc.addVertex(current);
-          if (!previous.equals(current))
-            acc.addEdge(previous, current.asInstanceOf[CustomTree])
+          preliminary(previous, current, acc)
 
           // name
-          inner(current, name, acc)
+          addCustomTerm(current, name, acc)
 
           acc
         }
 
-        case current: CustomName => {
-          // Name: add as is
-          acc.addVertex(current);
-          if (!previous.equals(current))
-            acc.addEdge(previous, current.asInstanceOf[CustomTree])
+        case current: CustomName => { // Name: add as is
+          preliminary(previous, current, acc)
+
           acc
         }
 
         case current @ PrimaryCtor(mods, name, paramss) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // mods
-          mods.foreach(inner(current, _, acc))
+          addListNode(previous, mods, acc)
 
           // name
-          acc.addVertex(name)
-          acc.addEdge(current, name)
+          addSimpleNode(current, name, acc)
 
           // paramss
-          paramss.foreach(_.foreach(inner(current, _, acc)))
+          addListListNode(previous, paramss, acc)
 
           acc
         }
 
 
         case current @ SecondaryCtor(mods, name, paramss, init, stats) => {
-          acc.addVertex(current)
-          if (!previous.equals(current))
-            acc.addEdge(previous, current)
+          preliminary(previous, current, acc)
 
           // mods
-          mods.foreach(inner(current, _, acc))
+          addListNode(previous, mods, acc)
 
           // name
-          acc.addVertex(name)
-          acc.addEdge(current, name)
+          addSimpleNode(current, name, acc)
 
           // paramss
-          paramss.foreach(_.foreach(inner(current, _, acc)))
+          addListListNode(previous, paramss, acc)
 
-          // init: ignored
+          // init
+          addCustomTerm(current, init, acc)
 
           // stats
-          stats.foreach(inner(current, _, acc))
+          addListNode(previous, stats, acc)
 
           acc
         }
+
 
         case otherwise: Any => {
           println(s"""You missed (referringMethodCollector/inner): $otherwise
@@ -742,7 +720,7 @@ object TreeGraph {
         }
       }
     }
-    inner(tree, tree, new DirectedAcyclicGraph[CustomTree, DefaultEdge](classOf[DefaultEdge]))
+    inner(tree, tree, new TreeGraph(classOf[DefaultEdge]))
   }
 
 
@@ -757,25 +735,6 @@ object TreeGraph {
   }
 
 
-  def treeGraphToStringGraph(graph: DirectedAcyclicGraph[CustomTree, DefaultEdge]):
-      DirectedAcyclicGraph[String, DefaultEdge] = {
-    val vertexList = graph.vertexSet.asScala.toList
-    val vertexStringList = vertexList.map(vertex => truncate(vertex.toString))
-
-    val out = new DirectedAcyclicGraph[String, DefaultEdge](classOf[DefaultEdge])
-
-    for (edge <- graph.edgeSet.asScala) {
-      val source = graph.getEdgeSource(edge)
-      val target = graph.getEdgeTarget(edge)
-      out.addVertex(source.toString)
-      out.addVertex(target.toString)
-      out.addEdge(source.toString, target.toString)
-    }
-
-    out
-  }
-
-
   def generateDOT(tree: CustomTree, filename: String): Unit = {
     val treeGraph = treeGraphToStringGraph(graphFromCustomTree(tree))
     val file = new File(filename)
@@ -783,10 +742,48 @@ object TreeGraph {
   }
 
 
-  def defunIsInGraph(defun: DefDef, graph: DirectedAcyclicGraph[CustomTree, DefaultEdge]) =
-    graph.vertexSet()
+  def defunIsInGraph(defun: DefDef, graph: TreeGraph) =
+    graph.vertexSet
       .asScala
       .toList
       .filter(isDefun)
       .contains(defun)
+
+
+  def customTreeFromGraph: TreeGraph => CustomTree = findRoot  // simple, ain't it?
+
+
+  def mapOnGraph[A, B](graph: DirectedAcyclicGraph[A, DefaultEdge],
+                       op: A => B):
+      DirectedAcyclicGraph[B, DefaultEdge] = {
+    val out = new DirectedAcyclicGraph[B, DefaultEdge](classOf[DefaultEdge])
+
+    for (edge <- graph.edgeSet.asScala) {
+      val source = graph.getEdgeSource(edge)
+      val target = graph.getEdgeTarget(edge)
+      val opSource = op(source)
+      val opTarget = op(target)
+      out.addVertex(op(source))
+      out.addVertex(op(target))
+      out.addEdge(opSource, opTarget)
+    }
+    out
+  }
+
+
+  def foldOverGraph[A, B](graph: DirectedAcyclicGraph[A, DefaultEdge],
+                          op: (B, A) => B,
+                          init: B): B = {
+    val iterator = new BreadthFirstIterator(graph)
+    var acc = init
+    while (iterator.hasNext) {
+      val elem = iterator.next
+      acc = op(acc, elem)
+    }
+    acc
+  }
+
+
+  def treeGraphToStringGraph: TreeGraph => DirectedAcyclicGraph[String, DefaultEdge] =
+    mapOnGraph(_, (tree: CustomTree) => tree.toString)
 }
