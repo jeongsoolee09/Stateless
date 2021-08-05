@@ -9,6 +9,9 @@ import kr.ac.korea.prl.stateless.TreeGraph._
 
 import scala.collection.JavaConverters._
 import kr.ac.korea.prl.stateless.CustomTreeTranslator.CustomTreeTranslator
+import org.jgrapht.traverse.BreadthFirstIterator
+import org.jgrapht.graph.DirectedAcyclicGraph
+import org.jgrapht.graph.DefaultEdge
 
 case object TODO extends Exception
 
@@ -138,7 +141,7 @@ class TreeTransformer {
       throw new InvalidInput(truncatedString(defun))
     }
 
-    // adding import statement
+    /* adding import statement */
     val body = defun.asInstanceOf[DefDef].body
     val newbody = body match {
       case current @ TermBlock(stats) =>
@@ -149,6 +152,57 @@ No changes made since function body is a single statement."""); body
     }
 
     val toplevelVars = toplevelVarSpotter(defclass)
+      ???
+  }
+
+
+  def replaceVertices(graph: DirectedAcyclicGraph[CustomTree, DefaultEdge],
+                      from: CustomTree,
+                      to: CustomTree) = {
+    graph.addVertex(to)
+
+    val incomingEdges = graph.incomingEdgesOf(from).asScala
+    val outgoingEdges = graph.outgoingEdgesOf(from).asScala
+
+    val parents = incomingEdges.map(graph.getEdgeSource(_))
+    val children = outgoingEdges.map(graph.getEdgeTarget(_))
+
+    parents.foreach(graph.removeEdge(_, from))
+    children.foreach(graph.removeEdge(from, _))
+
+    graph.removeVertex(from)
+
+    parents.foreach(graph.addEdge(_, to))
+    children.foreach(graph.addEdge(to, _))
+  }
+
+
+  def makeStubMain(customTree: CustomSource): CustomSource = {
+    /*  */
+    val treeGraph = TreeGraph.graphFromCustomTree(customTree)
+    val iterator = new BreadthFirstIterator(treeGraph)
+
+    var defObjectBody = List[CustomStat]()
+    var customTemplate = CustomTemplate(Nil, Nil, CustomSelf(CustomName(""), None), Nil)
+
+    while (iterator.hasNext()) {
+      val elem = iterator.next
+      if (elem.isInstanceOf[DefObject] &&
+            (elem.asInstanceOf[DefObject].name equals TermName("Main"))) {
+        customTemplate = elem.asInstanceOf[DefObject].templ
+        defObjectBody = customTemplate.stats
+      }
+    }
+
+    // stubMain with newDefObjectBody => newCustomTemplate => newCustomSource (which is returned)
+
+    val stubMain = DefDef(Nil, TermName("main"),
+                          Nil, Nil, None, TermBlock(defObjectBody))
+    val newCustomTemplate = CustomTemplate(customTemplate.early,
+                                           customTemplate.inits,
+                                           customTemplate.self,
+                                           List(stubMain))
+
     ???
   }
 }
