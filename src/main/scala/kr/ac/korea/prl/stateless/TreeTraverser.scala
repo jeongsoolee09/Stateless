@@ -6,65 +6,37 @@ import scala.meta.contrib._
 import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConverters._
 import scala.math.Ordering.Int
-import scala.util.{Try, Success, Failure}
 
 import org.jgrapht.traverse.BreadthFirstIterator
 import org.jgrapht.graph.DefaultEdge
 
 import kr.ac.korea.prl.stateless.TreeGraph._
 import kr.ac.korea.prl.stateless.CustomTree._
-import kr.ac.korea.prl.stateless.Utils._
+import kr.ac.korea.prl.stateless.CustomTree.Predicates._
+import kr.ac.korea.prl.stateless.Utils.Utils._
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 case object ThisIsImpossible extends Exception
-case object EmptyInputList extends Exception
-case class  InvalidInput(content: String) extends Exception
+case class InvalidInput(content: String) extends Exception
 
 object TreeTraverser {
 
   type TreeGraph = DirectedAcyclicGraph[CustomTree, DefaultEdge]
   type BFS = BreadthFirstIterator[CustomTree, DefaultEdge]
 
-
   def truncatedString(tree: CustomTree): String = {
     val string = tree.toString()
-    string.slice(0, 15)+"..."
+    string.slice(0, 15) + "..."
   }
-
-
-  /**
-    * Is this tree a Function Definition?
-    *
-    * @param tree
-    * @return if function definition then true, else false
-    */
-  def isDefun(tree: Tree): Boolean = tree match {
-    case Defn.Def(_, _, _, paramList, _, _) => !paramList.isEmpty
-    case _                                  => false
-  }
-
-  def isDefun(tree: CustomTree): Boolean = tree match {
-    case DefDef(_, _, _, paramList, _, _) => !paramList.isEmpty
-    case _                                => false
-  }
-
-  def isClassDef(tree: CustomTree): Boolean = tree match {
-    case _: DefClass  => true
-    case _: DefObject => true
-    case _            => false
-  }
-
 
   def scopeGreaterThanClass(tree: CustomTree): Boolean = tree match {
-    case _: DefClass      => true
-    case _: CustomSource  => true
-    case _: CustomPkg     => true
-    case _                => false
+    case _: DefClass     => true
+    case _: CustomSource => true
+    case _: CustomPkg    => true
+    case _               => false
   }
 
-
-  /**
-    * Collects all the vars defined in the given piece of program.
+  /** Collects all the vars defined in the given piece of program.
     *
     * @param tree must be of CustomTree type
     * @return The list of the 5-tuple:
@@ -238,25 +210,7 @@ object TreeTraverser {
     list.toList.distinct
   }
 
-
-  /**
-    * Find the key with maximum value in a list of tuples (alist).
-    *
-    * @param alist: Tuple list where the second element is an integer.
-    * @return the max key with the maximum value.
-    */
-  def findKeysWithMaxVal(alist: List[(CustomTree, Int)]):
-  Try[List[CustomTree]] = Try {
-    if (alist.isEmpty)
-      throw EmptyInputList
-    val vals = alist.map(_._2)
-    val maxVal = vals.max
-    alist.filter(tup => tup._2 == maxVal).map(_._1)
-  }
-
-
-  def classOrObjectCaster(ctree: CustomTree):
-      Either[DefClass, DefObject] = {
+  def classOrObjectCaster(ctree: CustomTree): Either[DefClass, DefObject] = {
     try {
       Left(ctree.asInstanceOf[DefClass])
     } catch {
@@ -514,6 +468,7 @@ object TreeTraverser {
 
     val vars = varCollector(defclass)
 
+    // TODO: we need callgraph object to do this job
     ??? // TODO
   }
 }

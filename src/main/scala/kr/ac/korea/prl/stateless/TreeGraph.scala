@@ -18,6 +18,7 @@ import scala.meta.contrib._
 import scala.collection.JavaConverters._
 
 import kr.ac.korea.prl.stateless.CustomTree._
+import kr.ac.korea.prl.stateless.CustomTree.Predicates._
 import kr.ac.korea.prl.stateless.CustomTreeTranslator.CustomTreeTranslator
 
 object TreeGraph {
