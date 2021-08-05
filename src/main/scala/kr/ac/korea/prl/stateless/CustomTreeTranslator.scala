@@ -1,3 +1,9 @@
+/**
+  * Scala source code <=> ScalaMeta Tree <=> CustomTree <=> TreeGraph <=> SummarizedTreeGraph
+  *                                      ^^^
+  */
+
+
 package kr.ac.korea.prl.stateless.CustomTreeTranslator
 
 
@@ -281,8 +287,8 @@ object CustomTreeTranslator {
       scala.meta.Importer(customTreeToScalaMeta(ref).asInstanceOf[Term.Ref],
                           importees.map(customTreeToScalaMeta(_).asInstanceOf[scala.meta.Importee]))
 
-
     case CustomName(value) => ???
+
     case CustomInit(tpe, name, argss) => ???
 
     case Self(name, decltpe) => ???

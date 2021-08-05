@@ -26,12 +26,6 @@ object TreeGraph {
   type BFS = BreadthFirstIterator[CustomTree, DefaultEdge]
 
 
-  def isDefun(tree: CustomTree): Boolean = tree match {
-    case DefDef(_, _, _, paramList, _, _) => !paramList.isEmpty
-    case _                                => false
-  }
-
-
   def findRoot[A](graph: DirectedAcyclicGraph[A, DefaultEdge]): A = {
     val vertices = graph.vertexSet.asScala.toList
     val inDegrees = vertices.map(graph.inDegreeOf(_))
@@ -633,10 +627,10 @@ object TreeGraph {
 
           // early
           addListNode(current, early, acc)
-          
+
           // inits
           addListNode(current, inits, acc)
-          
+
           // self
           addCustomTerm(previous, self, acc)
 
@@ -648,7 +642,7 @@ object TreeGraph {
 
         case current @ CustomSource(stats) => {
           preliminary(previous, current, acc)
- 
+
           // stats
           addListNode(current, stats, acc)
 
