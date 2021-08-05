@@ -521,10 +521,37 @@ case class CustomImport(importers: List[CustomImporter]) extends CustomStat {
   def apply(importers: List[CustomImporter]) = new CustomImport(importers)
 }
 
-
 /* ============ ASTList ============ */
 // the "id" slot keeps each instances distinct in a VertexSet.
 case class ASTList(id: Int) extends CustomTree
 case class ASTSome(id: Int) extends CustomTree
 case class ASTNone(id: Int) extends CustomTree
 
+object Predicates {
+
+  /** Is this tree a Function Definition?
+    *
+    * @param tree
+    * @return if function definition then true, else false
+    */
+  def isDefun(tree: CustomTree): Boolean = tree match {
+    case DefDef(_, _, _, paramList, _, _) => !paramList.isEmpty
+    case _                                => false
+  }
+
+  def isClassDef(tree: CustomTree): Boolean = tree match {
+    case _: DefClass  => true
+    case _: DefObject => true
+    case _            => false
+  }
+
+  def isDefClass(tree: CustomTree): Boolean = tree match {
+    case _: DefClass => true
+    case _           => false
+  }
+
+  def isDefObject(tree: CustomTree): Boolean = tree match {
+    case _: DefObject => true
+    case _            => false
+  }
+}
