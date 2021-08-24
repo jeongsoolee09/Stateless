@@ -10,7 +10,6 @@ import kr.ac.korea.prl.stateless.CustomTreeTranslator._
 import TreeReader._
 import TreeTraverser._
 import TreeGraph._
-import CustomTree._
 import CustomTreeTranslator._
 
 import scala.meta._
@@ -21,7 +20,7 @@ object Main extends App {
     "/Users/jslee/Dropbox/Stateless/benchmarks/Scala/FunctionalImplementation/Bags/BagNotFunctional.scala"
 
   val bagTree: Tree = read(dir)
-  val bagCustomTree = scalaMetaToCustomTree(bagTree)
+  val bagCustomTree = customTreeOfScalaMeta(bagTree)
 
   val vars = varCollector(bagCustomTree)
 

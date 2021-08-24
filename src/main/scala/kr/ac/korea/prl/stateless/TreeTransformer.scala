@@ -87,7 +87,7 @@ class TreeTransformer {
     if (!defun.isInstanceOf[DefDef]) {
       throw new InvalidInput(truncatedString(defun))
     }
-    val graph = TreeGraph.graphFromCustomTree(defun)
+    val graph = TreeGraph.treeGraphOfCustomTree(defun)
 
     def constructTermParam(material: List[(TermName, TypeName)]) = {
       val paramList = to.map(
@@ -124,7 +124,7 @@ class TreeTransformer {
     toplevel match {
       case TermBlock(stats) => {
         val importStat = ("import "+packageString).parse[Stat].get.asInstanceOf[Import]
-        val customImportStat = CustomTreeTranslator.scalaMetaToCustomTree(importStat).asInstanceOf[CustomStat]
+        val customImportStat = CustomTreeTranslator.customTreeOfScalaMeta(importStat).asInstanceOf[CustomStat]
         TermBlock(customImportStat::stats)
       }
       case _ => toplevel
@@ -179,7 +179,7 @@ No changes made since function body is a single statement."""); body
 
   def makeStubMain(customTree: CustomSource): CustomSource = {
     /*  */
-    val treeGraph = TreeGraph.graphFromCustomTree(customTree)
+    val treeGraph = TreeGraph.treeGraphOfCustomTree(customTree)
     val iterator = new BreadthFirstIterator(treeGraph)
 
     var defObjectBody = List[CustomStat]()

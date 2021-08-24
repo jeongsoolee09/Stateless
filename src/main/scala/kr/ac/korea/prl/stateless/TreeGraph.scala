@@ -54,7 +54,7 @@ object TreeGraph {
     * @param tree
     * @return
     */
-  def graphFromCustomTree(tree: CustomTree): TreeGraph = {
+  def treeGraphOfCustomTree(tree: CustomTree): TreeGraph = {
 
     var ASTListCounter = 0
     var ASTSomeCounter = 0
@@ -739,7 +739,7 @@ object TreeGraph {
 
 
   def generateDOT(tree: CustomTree, filename: String): Unit = {
-    val treeGraph = treeGraphToStringGraph(graphFromCustomTree(tree))
+    val treeGraph = stringGraphOfTreeGraph(treeGraphOfCustomTree(tree))
     val file = new File(filename)
     new DOTExporter[String, DefaultEdge](vertex => truncate(vertex)).exportGraph(treeGraph, file)
   }
@@ -753,7 +753,7 @@ object TreeGraph {
       .contains(defun)
 
 
-  def customTreeFromGraph: TreeGraph => CustomTree = findRoot  // simple, ain't it?
+  def customTreeOfGraph: TreeGraph => CustomTree = findRoot  // simple, ain't it?
 
 
   def mapOnGraph[A, B](graph: DirectedAcyclicGraph[A, DefaultEdge],
@@ -787,6 +787,6 @@ object TreeGraph {
   }
 
 
-  def treeGraphToStringGraph: TreeGraph => DirectedAcyclicGraph[String, DefaultEdge] =
+  def stringGraphOfTreeGraph: TreeGraph => DirectedAcyclicGraph[String, DefaultEdge] =
     mapOnGraph(_, (tree: CustomTree) => tree.toString)
 }
