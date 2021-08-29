@@ -15,11 +15,13 @@ import kr.ac.korea.prl.stateless.Utils.Utils._
 import scala.collection.mutable.ListBuffer
 import scala.util.{Try, Success, Failure}
 
+case class NoSuchMethod(msg: String) extends Exception
+
 object CallGraph {
 
   type Method = (TypeName, TermName)
   type CallGraph = DirectedAcyclicGraph[Method, DefaultEdge]
-  type BFS = BreadthFirstIterator[CustomTree, DefaultEdge]
+  type CustomTreeBFS = BreadthFirstIterator[CustomTree, DefaultEdge]
 
   case class MethResolutionFailed(msg: String) extends Exception
 
@@ -30,19 +32,20 @@ object CallGraph {
     ???
   }
 
+
   /** Resolve the method's signature only by its name.
     *
     * Limitations:
     * - Does not support overloaded methods:
-    *   It cannot specify which definition among others.
+    *   - It cannot specify which definition among others.
     *
     * @param funName
     * @param method
     * @return
     */
   def methodNameResolver(target: TermName, namespace: CustomSource): Method = {
-    val treeGraph = TreeGraph.graphFromCustomTree(namespace)
-    val iterator = new BFS(treeGraph)
+    val treeGraph = TreeGraph.treeGraphOfCustomTree(namespace)
+    val iterator = new CustomTreeBFS(treeGraph)
 
     var defunFound = false
     val parentClassDefs = new ListBuffer[CustomTree]
@@ -68,7 +71,7 @@ object CallGraph {
       /* ============ The value was found in the current namespace ============ */
       // get the most specific one!
       val classesAndDepth =
-        parentClassDefs.map((klass => (klass, iterator.getDepth(klass)))).toList
+        parentClassDefs.map((customClass => (customClass, iterator.getDepth(customClass)))).toList
       try {
         val result = findKeysWithMaxVal[CustomTree](classesAndDepth)
         (result.head.asInstanceOf[TypeName], target)
@@ -78,8 +81,9 @@ object CallGraph {
       }
     } else {
       /* ============ The value was not found in the current namespace ============ */
-      // check the import statements
-      ???
+      // such scenarios are not supported for now
+      // TODO read Metals code to find how Metals draws callgraphs
+      throw NoSuchMethod(target.toString)
     }
   }
 }
